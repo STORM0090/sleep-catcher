@@ -44,6 +44,18 @@ Plan buildPlan(const PlanRequest& req) {
     const int64_t cycle = minutesToMs(req.tuning.cycleMinutes);
 
     switch (req.mode) {
+        case Mode::CatchDream: {
+            // The loud alarm is a safety net exactly at the target time, so the
+            // sleeper is never woken later than requested. The soft pulse goes on
+            // the last boundary that leaves a useful gap before it.
+            const int64_t latestSoft = req.targetMs - minutesToMs(req.tuning.softGapMinutes);
+            const int64_t k = fullCyclesBefore(start, latestSoft, cycle);
+            if (k >= req.tuning.minCycles) {
+                plan.signals.push_back({boundaryAt(start, cycle, k), SignalKind::SoftPulse});
+            }
+            plan.signals.push_back({req.targetMs, SignalKind::LoudAlarm});
+            break;
+        }
         case Mode::Refreshed:
         default: {
             // Latest boundary that is not after the target. If that would give a

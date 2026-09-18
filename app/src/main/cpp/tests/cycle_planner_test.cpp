@@ -63,6 +63,56 @@ TEST(Refreshed, TargetBeforeSleepStartStillGivesMinimumCycles) {
     EXPECT_EQ(plan.signals[0].atMs, at(8, 45));
 }
 
+TEST(CatchDream, SoftPulseOnLastBoundaryThenLoudAlarmAtTarget) {
+    // 8:45 is only 15 min before the target, closer than the 20 min gap, so 7:15 is used.
+    const Plan plan = buildPlan(request(Mode::CatchDream, at(1), at(9)));
+    ASSERT_EQ(plan.signals.size(), 2u);
+    EXPECT_EQ(plan.signals[0].atMs, at(7, 15));
+    EXPECT_EQ(plan.signals[0].kind, SignalKind::SoftPulse);
+    EXPECT_EQ(plan.signals[1].atMs, at(9));
+    EXPECT_EQ(plan.signals[1].kind, SignalKind::LoudAlarm);
+}
+
+TEST(CatchDream, BoundaryFarEnoughBeforeTargetIsKept) {
+    // Target 9:10: boundary 8:45 is 25 min earlier, which respects the gap.
+    const Plan plan = buildPlan(request(Mode::CatchDream, at(1), at(9, 10)));
+    ASSERT_EQ(plan.signals.size(), 2u);
+    EXPECT_EQ(plan.signals[0].atMs, at(8, 45));
+    EXPECT_EQ(plan.signals[1].atMs, at(9, 10));
+}
+
+TEST(CatchDream, BoundaryExactlyAtLatestSoftIsUsed) {
+    // Target 9:05 minus the 20 min gap lands exactly on the 8:45 boundary.
+    const Plan plan = buildPlan(request(Mode::CatchDream, at(1), at(9, 5)));
+    ASSERT_EQ(plan.signals.size(), 2u);
+    EXPECT_EQ(plan.signals[0].atMs, at(8, 45));
+}
+
+TEST(CatchDream, LoudAlarmNeverLaterThanTarget) {
+    for (int minute : {0, 7, 30, 59}) {
+        const Plan plan = buildPlan(request(Mode::CatchDream, at(0, 30), at(8, minute)));
+        EXPECT_EQ(plan.signals.back().atMs, at(8, minute));
+        EXPECT_EQ(plan.signals.back().kind, SignalKind::LoudAlarm);
+    }
+}
+
+TEST(CatchDream, NoSoftPulseWhenNightIsTooShort) {
+    const Plan plan = buildPlan(request(Mode::CatchDream, at(5), at(7)));
+    ASSERT_EQ(plan.signals.size(), 1u);
+    EXPECT_EQ(plan.signals[0].kind, SignalKind::LoudAlarm);
+    EXPECT_EQ(plan.signals[0].atMs, at(7));
+}
+
+TEST(CatchDream, SoftGapLongerThanCycleStillWorks) {
+    PlanRequest req = request(Mode::CatchDream, at(1), at(9));
+    req.tuning.softGapMinutes = 120;
+    // Latest soft moment is 7:00, so the pulse drops back to the 5:45 boundary.
+    const Plan plan = buildPlan(req);
+    ASSERT_EQ(plan.signals.size(), 2u);
+    EXPECT_EQ(plan.signals[0].atMs, at(5, 45));
+    EXPECT_EQ(plan.signals[1].atMs, at(9));
+}
+
 TEST(Tuning, CustomCycleLengthAndLatencyAreRespected) {
     PlanRequest req = request(Mode::Refreshed, at(0), at(6));
     req.tuning.cycleMinutes = 100;
