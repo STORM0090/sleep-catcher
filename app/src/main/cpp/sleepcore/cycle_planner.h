@@ -43,4 +43,6 @@ struct Plan {
 // Ends of sleep cycles 1..count, measured from onset + fall-asleep latency.
 std::vector<int64_t> cycleBoundaries(int64_t onsetMs, const Tuning& tuning, int count);
 
+Plan buildPlan(const PlanRequest& req);
+
 }  // namespace sleepcore
