@@ -25,10 +25,20 @@ int64_t fullCyclesBefore(int64_t sleepStartMs, int64_t limitMs, int64_t cycleMs)
 
 }  // namespace
 
-std::vector<int64_t> cycleBoundaries(int64_t onsetMs, const Tuning& tuning, int count) {
+Tuning sanitize(Tuning tuning) {
+    const Tuning defaults;
+    if (tuning.cycleMinutes < 1) tuning.cycleMinutes = defaults.cycleMinutes;
+    if (tuning.fallAsleepMinutes < 0) tuning.fallAsleepMinutes = 0;
+    if (tuning.minCycles < 1) tuning.minCycles = 1;
+    if (tuning.softGapMinutes < 0) tuning.softGapMinutes = 0;
+    return tuning;
+}
+
+std::vector<int64_t> cycleBoundaries(int64_t onsetMs, const Tuning& rawTuning, int count) {
     std::vector<int64_t> out;
     if (count <= 0) return out;
 
+    const Tuning tuning = sanitize(rawTuning);
     const int64_t start = sleepStart(onsetMs, tuning);
     const int64_t cycle = minutesToMs(tuning.cycleMinutes);
     out.reserve(static_cast<size_t>(count));
@@ -40,17 +50,18 @@ std::vector<int64_t> cycleBoundaries(int64_t onsetMs, const Tuning& tuning, int 
 
 Plan buildPlan(const PlanRequest& req) {
     Plan plan;
-    const int64_t start = sleepStart(req.onsetMs, req.tuning);
-    const int64_t cycle = minutesToMs(req.tuning.cycleMinutes);
+    const Tuning tuning = sanitize(req.tuning);
+    const int64_t start = sleepStart(req.onsetMs, tuning);
+    const int64_t cycle = minutesToMs(tuning.cycleMinutes);
 
     switch (req.mode) {
         case Mode::CatchDream: {
             // The loud alarm is a safety net exactly at the target time, so the
             // sleeper is never woken later than requested. The soft pulse goes on
             // the last boundary that leaves a useful gap before it.
-            const int64_t latestSoft = req.targetMs - minutesToMs(req.tuning.softGapMinutes);
+            const int64_t latestSoft = req.targetMs - minutesToMs(tuning.softGapMinutes);
             const int64_t k = fullCyclesBefore(start, latestSoft, cycle);
-            if (k >= req.tuning.minCycles) {
+            if (k >= tuning.minCycles) {
                 plan.signals.push_back({boundaryAt(start, cycle, k), SignalKind::SoftPulse});
             }
             plan.signals.push_back({req.targetMs, SignalKind::LoudAlarm});
@@ -62,7 +73,7 @@ Plan buildPlan(const PlanRequest& req) {
             // very short night, prefer the minimum number of cycles even if it
             // means waking a bit later than asked.
             int64_t k = fullCyclesBefore(start, req.targetMs, cycle);
-            if (k < req.tuning.minCycles) k = req.tuning.minCycles;
+            if (k < tuning.minCycles) k = tuning.minCycles;
             plan.signals.push_back({boundaryAt(start, cycle, k), SignalKind::LoudAlarm});
             break;
         }

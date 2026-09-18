@@ -40,6 +40,10 @@ struct Plan {
     bool naturalWakeWarning = false;
 };
 
+// Replaces zero or negative tuning values with safe ones. Every public
+// function applies this itself, so callers may pass raw user input.
+Tuning sanitize(Tuning tuning);
+
 // Ends of sleep cycles 1..count, measured from onset + fall-asleep latency.
 std::vector<int64_t> cycleBoundaries(int64_t onsetMs, const Tuning& tuning, int count);
 

@@ -140,6 +140,48 @@ TEST(NaturalWake, EqualToNaturalWakeDoesNotWarn) {
     EXPECT_FALSE(buildPlan(req).naturalWakeWarning);
 }
 
+TEST(Sanitize, ZeroCycleFallsBackToDefault) {
+    Tuning t;
+    t.cycleMinutes = 0;
+    EXPECT_EQ(sanitize(t).cycleMinutes, 90);
+}
+
+TEST(Sanitize, NegativeCycleFallsBackToDefault) {
+    Tuning t;
+    t.cycleMinutes = -90;
+    EXPECT_EQ(sanitize(t).cycleMinutes, 90);
+}
+
+TEST(Sanitize, NegativeLatencyBecomesZero) {
+    Tuning t;
+    t.fallAsleepMinutes = -15;
+    EXPECT_EQ(sanitize(t).fallAsleepMinutes, 0);
+}
+
+TEST(Sanitize, ZeroMinCyclesBecomesOne) {
+    Tuning t;
+    t.minCycles = 0;
+    EXPECT_EQ(sanitize(t).minCycles, 1);
+}
+
+TEST(Sanitize, NegativeSoftGapBecomesZero) {
+    Tuning t;
+    t.softGapMinutes = -30;
+    EXPECT_EQ(sanitize(t).softGapMinutes, 0);
+}
+
+TEST(Sanitize, BuildPlanWithZeroCycleDoesNotCrash) {
+    PlanRequest broken = request(Mode::CatchDream, at(1), at(9));
+    broken.tuning.cycleMinutes = 0;
+    const Plan expected = buildPlan(request(Mode::CatchDream, at(1), at(9)));
+    const Plan actual = buildPlan(broken);
+    ASSERT_EQ(actual.signals.size(), expected.signals.size());
+    for (size_t i = 0; i < expected.signals.size(); ++i) {
+        EXPECT_EQ(actual.signals[i].atMs, expected.signals[i].atMs);
+        EXPECT_EQ(actual.signals[i].kind, expected.signals[i].kind);
+    }
+}
+
 TEST(Tuning, CustomCycleLengthAndLatencyAreRespected) {
     PlanRequest req = request(Mode::Refreshed, at(0), at(6));
     req.tuning.cycleMinutes = 100;
