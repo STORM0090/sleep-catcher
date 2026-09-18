@@ -1,0 +1,9 @@
+# Let git pick the line ending per file type; keep scripts and binaries safe.
+* text=auto
+
+*.sh text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf
+
+*.jar binary
+*.png binary
