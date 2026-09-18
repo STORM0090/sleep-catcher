@@ -67,6 +67,16 @@ Plan buildPlan(const PlanRequest& req) {
             break;
         }
     }
+
+    // Only the loud alarm decides the wake-up, so soft pulses are ignored here.
+    if (req.naturalWakeMs > 0) {
+        for (auto it = plan.signals.rbegin(); it != plan.signals.rend(); ++it) {
+            if (it->kind == SignalKind::LoudAlarm) {
+                plan.naturalWakeWarning = it->atMs > req.naturalWakeMs;
+                break;
+            }
+        }
+    }
     return plan;
 }
 

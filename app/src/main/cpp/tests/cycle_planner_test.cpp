@@ -113,6 +113,33 @@ TEST(CatchDream, SoftGapLongerThanCycleStillWorks) {
     EXPECT_EQ(plan.signals[1].atMs, at(9));
 }
 
+TEST(NaturalWake, WarnsWhenFinalSignalIsAfterNaturalWakeTime) {
+    PlanRequest req = request(Mode::Refreshed, at(4), at(6));   // alarm lands at 8:45
+    req.naturalWakeMs = at(8);
+    EXPECT_TRUE(buildPlan(req).naturalWakeWarning);
+
+    req.naturalWakeMs = at(11);
+    EXPECT_FALSE(buildPlan(req).naturalWakeWarning);
+
+    req.naturalWakeMs = 0;   // unknown, never warn
+    EXPECT_FALSE(buildPlan(req).naturalWakeWarning);
+}
+
+TEST(NaturalWake, CatchDreamUsesLoudAlarmForTheCheck) {
+    PlanRequest req = request(Mode::CatchDream, at(1), at(12));   // soft pulse 10:15, loud 12:00
+    req.naturalWakeMs = at(11);
+    EXPECT_TRUE(buildPlan(req).naturalWakeWarning);
+
+    req.naturalWakeMs = at(10, 30);   // between the pulse and the alarm: still only the alarm counts
+    EXPECT_TRUE(buildPlan(req).naturalWakeWarning);
+}
+
+TEST(NaturalWake, EqualToNaturalWakeDoesNotWarn) {
+    PlanRequest req = request(Mode::CatchDream, at(1), at(11));
+    req.naturalWakeMs = at(11);
+    EXPECT_FALSE(buildPlan(req).naturalWakeWarning);
+}
+
 TEST(Tuning, CustomCycleLengthAndLatencyAreRespected) {
     PlanRequest req = request(Mode::Refreshed, at(0), at(6));
     req.tuning.cycleMinutes = 100;
