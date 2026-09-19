@@ -1,0 +1,26 @@
+name: core tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  cpp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache the googletest download
+        uses: actions/cache@v4
+        with:
+          path: build/sleepcore/_deps
+          key: gtest-${{ hashFiles('app/src/main/cpp/tests/CMakeLists.txt') }}
+
+      - name: Configure
+        run: cmake -S app/src/main/cpp -B build/sleepcore -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build/sleepcore --parallel
+
+      - name: Run tests
+        run: ctest --test-dir build/sleepcore --output-on-failure
