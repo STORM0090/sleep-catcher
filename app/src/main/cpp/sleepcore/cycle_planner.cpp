@@ -34,6 +34,10 @@ int64_t refreshedAlarmAt(int64_t sleepStartMs, int64_t targetMs, int64_t cycleMs
 
 }  // namespace
 
+bool isValidMode(int rawMode) {
+    return rawMode == static_cast<int>(Mode::Refreshed) || rawMode == static_cast<int>(Mode::CatchDream);
+}
+
 Tuning sanitize(Tuning tuning) {
     const Tuning defaults;
     if (tuning.cycleMinutes < 1) tuning.cycleMinutes = defaults.cycleMinutes;
@@ -77,8 +81,11 @@ Plan buildPlan(const PlanRequest& req) {
             // the last boundary that leaves a useful gap before it.
             const int64_t latestSoft = req.targetMs - minutesToMs(tuning.softGapMinutes);
             const int64_t k = fullCyclesBefore(start, latestSoft, cycle);
-            if (k >= tuning.minCycles) {
-                plan.signals.push_back({boundaryAt(start, cycle, k), SignalKind::SoftPulse});
+            const int64_t softAt = boundaryAt(start, cycle, k);
+            // Without a gap a boundary can land on the target itself, and two
+            // signals at the same moment are one signal too many.
+            if (k >= tuning.minCycles && softAt < req.targetMs) {
+                plan.signals.push_back({softAt, SignalKind::SoftPulse});
             }
             plan.signals.push_back({req.targetMs, SignalKind::LoudAlarm});
             break;

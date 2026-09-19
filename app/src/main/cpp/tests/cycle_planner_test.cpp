@@ -113,6 +113,32 @@ TEST(CatchDream, SoftGapLongerThanCycleStillWorks) {
     EXPECT_EQ(plan.signals[1].atMs, at(9));
 }
 
+TEST(CatchDream, SoftGapZeroOnBoundaryGivesOnlyLoudAlarm) {
+    PlanRequest req = request(Mode::CatchDream, at(1), at(8, 45));
+    req.tuning.softGapMinutes = 0;
+    // The 8:45 boundary is the target itself, so there is nothing to nudge.
+    const Plan plan = buildPlan(req);
+    ASSERT_EQ(plan.signals.size(), 1u);
+    EXPECT_EQ(plan.signals[0].atMs, at(8, 45));
+    EXPECT_EQ(plan.signals[0].kind, SignalKind::LoudAlarm);
+}
+
+TEST(ModeValues, IsValidModeAcceptsOnlyKnownValues) {
+    EXPECT_TRUE(isValidMode(0));
+    EXPECT_TRUE(isValidMode(1));
+    EXPECT_FALSE(isValidMode(-1));
+    EXPECT_FALSE(isValidMode(2));
+    EXPECT_FALSE(isValidMode(99));
+}
+
+TEST(ModeValues, UnknownModeBehavesLikeRefreshed) {
+    const Plan unknown = buildPlan(request(static_cast<Mode>(7), at(1), at(9)));
+    const Plan refreshed = buildPlan(request(Mode::Refreshed, at(1), at(9)));
+    ASSERT_EQ(unknown.signals.size(), 1u);
+    EXPECT_EQ(unknown.signals[0].atMs, refreshed.signals[0].atMs);
+    EXPECT_EQ(unknown.signals[0].kind, SignalKind::LoudAlarm);
+}
+
 TEST(CatchDream, TargetBeforeOnsetFallsBackToMinimumCycles) {
     const Plan plan = buildPlan(request(Mode::CatchDream, at(4), at(3)));
     ASSERT_EQ(plan.signals.size(), 1u);

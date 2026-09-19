@@ -6,7 +6,10 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-add_executable(cycle_planner_test cycle_planner_test.cpp)
+add_executable(cycle_planner_test
+    cycle_planner_test.cpp
+    plan_invariants_test.cpp
+)
 target_link_libraries(cycle_planner_test PRIVATE sleepcore_lib GTest::gtest_main)
 
 include(GoogleTest)

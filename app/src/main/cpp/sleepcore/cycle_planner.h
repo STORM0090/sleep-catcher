@@ -40,6 +40,10 @@ struct Plan {
     bool naturalWakeWarning = false;
 };
 
+// True for integers that map to a known Mode. Values arrive as plain ints
+// from the Android side, so they cannot be trusted blindly.
+bool isValidMode(int rawMode);
+
 // Replaces zero or negative tuning values with safe ones. Every public
 // function applies this itself, so callers may pass raw user input.
 Tuning sanitize(Tuning tuning);
