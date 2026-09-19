@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "com.yehor.sleepcatcher"
     compileSdk = 35
+    ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = "com.yehor.sleepcatcher"
@@ -15,7 +16,18 @@ android {
         versionName = "0.1"
     }
 
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
     buildTypes {
+        debug {
+            // A phone and the emulator; the other ABIs only slow the build down.
+            ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

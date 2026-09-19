@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(sleepcore LANGUAGES CXX)
+project(sleepcatcher_core LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,7 +19,11 @@ target_include_directories(sleepcore_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/slee
 # Required to fold this static library into a shared one on Android.
 set_target_properties(sleepcore_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
+if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    # Loaded from Kotlin with System.loadLibrary("sleepcore").
+    add_library(sleepcore SHARED jni_bridge.cpp)
+    target_link_libraries(sleepcore PRIVATE sleepcore_lib)
+else()
     enable_testing()
     add_subdirectory(tests)
 endif()
