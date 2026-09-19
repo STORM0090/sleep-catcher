@@ -23,6 +23,15 @@ int64_t fullCyclesBefore(int64_t sleepStartMs, int64_t limitMs, int64_t cycleMs)
     return (limitMs - sleepStartMs) / cycleMs;
 }
 
+// Latest boundary that is not after the target. If that would give a very
+// short night, prefer the minimum number of cycles even if it means waking
+// a bit later than asked.
+int64_t refreshedAlarmAt(int64_t sleepStartMs, int64_t targetMs, int64_t cycleMs, int minCycles) {
+    int64_t k = fullCyclesBefore(sleepStartMs, targetMs, cycleMs);
+    if (k < minCycles) k = minCycles;
+    return boundaryAt(sleepStartMs, cycleMs, k);
+}
+
 }  // namespace
 
 Tuning sanitize(Tuning tuning) {
@@ -56,6 +65,13 @@ Plan buildPlan(const PlanRequest& req) {
 
     switch (req.mode) {
         case Mode::CatchDream: {
+            if (req.targetMs <= start) {
+                // The target is already behind us; a safety alarm there would
+                // fire immediately, so plan a normal night instead.
+                plan.signals.push_back(
+                        {refreshedAlarmAt(start, req.targetMs, cycle, tuning.minCycles), SignalKind::LoudAlarm});
+                break;
+            }
             // The loud alarm is a safety net exactly at the target time, so the
             // sleeper is never woken later than requested. The soft pulse goes on
             // the last boundary that leaves a useful gap before it.
@@ -69,12 +85,8 @@ Plan buildPlan(const PlanRequest& req) {
         }
         case Mode::Refreshed:
         default: {
-            // Latest boundary that is not after the target. If that would give a
-            // very short night, prefer the minimum number of cycles even if it
-            // means waking a bit later than asked.
-            int64_t k = fullCyclesBefore(start, req.targetMs, cycle);
-            if (k < tuning.minCycles) k = tuning.minCycles;
-            plan.signals.push_back({boundaryAt(start, cycle, k), SignalKind::LoudAlarm});
+            plan.signals.push_back(
+                    {refreshedAlarmAt(start, req.targetMs, cycle, tuning.minCycles), SignalKind::LoudAlarm});
             break;
         }
     }

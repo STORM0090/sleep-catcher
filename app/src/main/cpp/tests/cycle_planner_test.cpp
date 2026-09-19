@@ -113,6 +113,28 @@ TEST(CatchDream, SoftGapLongerThanCycleStillWorks) {
     EXPECT_EQ(plan.signals[1].atMs, at(9));
 }
 
+TEST(CatchDream, TargetBeforeOnsetFallsBackToMinimumCycles) {
+    const Plan plan = buildPlan(request(Mode::CatchDream, at(4), at(3)));
+    ASSERT_EQ(plan.signals.size(), 1u);
+    EXPECT_EQ(plan.signals[0].atMs, at(8, 45));
+    EXPECT_EQ(plan.signals[0].kind, SignalKind::LoudAlarm);
+}
+
+TEST(CatchDream, TargetAtSleepStartFallsBack) {
+    // Onset 4:00 plus the 15 min latency is exactly the target.
+    const Plan plan = buildPlan(request(Mode::CatchDream, at(4), at(4, 15)));
+    ASSERT_EQ(plan.signals.size(), 1u);
+    EXPECT_EQ(plan.signals[0].atMs, at(8, 45));
+}
+
+TEST(CatchDream, TargetInsideFirstCycleKeepsSafetyAlarm) {
+    // A short nap: no room for a soft pulse, but the alarm stays where asked.
+    const Plan plan = buildPlan(request(Mode::CatchDream, at(4), at(4, 40)));
+    ASSERT_EQ(plan.signals.size(), 1u);
+    EXPECT_EQ(plan.signals[0].atMs, at(4, 40));
+    EXPECT_EQ(plan.signals[0].kind, SignalKind::LoudAlarm);
+}
+
 TEST(NaturalWake, WarnsWhenFinalSignalIsAfterNaturalWakeTime) {
     PlanRequest req = request(Mode::Refreshed, at(4), at(6));   // alarm lands at 8:45
     req.naturalWakeMs = at(8);
