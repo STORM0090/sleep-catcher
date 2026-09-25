@@ -5,5 +5,12 @@
     <string name="alarm_title">Time to wake up</string>
     <string name="alarm_stop">Stop</string>
 
+    <string name="watch_title">Waiting for you to fall asleep</string>
+    <string name="watch_text">Lock the phone after TikTok and the alarm plans itself</string>
+
+    <string name="problem_usage_access">Usage access is off, so the app cannot tell when you fall asleep</string>
+
+    <string name="notification_channel_watch">Sleep detection</string>
     <string name="notification_channel_alarm">Alarm</string>
+    <string name="notification_channel_problems">Problems</string>
 </resources>
