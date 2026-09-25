@@ -106,6 +106,32 @@ class CycleAlarmSchedulerTest {
     }
 
     @Test
+    fun aLateRebuildSkipsTheNudgeThatAlreadyPassed() {
+        engine.plan = planOf(soft(at(7, 15)), loud(at(9)))
+        clock.now = at(8)
+
+        val result = scheduler.scheduleFromOnset(at(1))
+
+        assertEquals(listOf(Call.Loud(0, at(9))), gateway.calls)
+        assertEquals(listOf(loud(at(9))), (result as ScheduleResult.Scheduled).scheduled)
+        assertEquals(1, settings.scheduledSignalCount)
+        assertEquals(at(9), settings.plannedFinalWakeMillis)
+    }
+
+    @Test
+    fun aRebuildAfterTheAlarmSchedulesNothing() {
+        engine.plan = planOf(soft(at(7, 15)), loud(at(9)))
+        clock.now = at(10)
+
+        val result = scheduler.scheduleFromOnset(at(1))
+
+        assertEquals(ScheduleResult.NothingInFuture, result)
+        assertTrue(gateway.calls.isEmpty())
+        assertEquals(0, settings.scheduledSignalCount)
+        assertEquals(0L, settings.plannedFinalWakeMillis)
+    }
+
+    @Test
     fun previewingDoesNotTouchTheAlarms() {
         val plan = scheduler.previewPlan(at(1))
 

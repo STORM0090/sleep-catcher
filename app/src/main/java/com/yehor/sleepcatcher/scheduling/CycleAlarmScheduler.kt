@@ -29,11 +29,12 @@ class CycleAlarmScheduler(
     fun previewPlan(onsetMillis: Long): AlarmPlan = engine.buildPlan(requestFor(onsetMillis))
 
     fun scheduleFromOnset(onsetMillis: Long): ScheduleResult {
+        val now = clock.nowMillis()
         val decision = OnsetPolicy.decide(
             onsetMillis = onsetMillis,
             targetMillis = targetFor(onsetMillis),
             plannedFinalWakeMillis = settings.plannedFinalWakeMillis,
-            nowMillis = clock.nowMillis(),
+            nowMillis = now,
             tuning = tuning,
         )
         when (decision) {
@@ -42,14 +43,17 @@ class CycleAlarmScheduler(
         }
 
         val plan = engine.buildPlan(requestFor(onsetMillis))
+        val future = PlanFilter.futureSignals(plan, now)
+
         // Old alarms go first: they use the same request codes as the new ones.
         cancelScheduled()
-        plan.signals.forEachIndexed(::schedule)
-
         settings.lastOnsetMillis = onsetMillis
-        settings.scheduledSignalCount = plan.signals.size
-        settings.plannedFinalWakeMillis = plan.finalWakeMillis
-        return ScheduleResult.Scheduled(plan, plan.signals)
+        if (future.isEmpty()) return ScheduleResult.NothingInFuture
+
+        future.forEachIndexed(::schedule)
+        settings.scheduledSignalCount = future.size
+        settings.plannedFinalWakeMillis = future.last().atMillis
+        return ScheduleResult.Scheduled(plan, future)
     }
 
     fun cancelScheduled() {

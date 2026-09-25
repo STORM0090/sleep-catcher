@@ -37,6 +37,8 @@ class SleepOnsetReceiver : BroadcastReceiver() {
                     Log.i(LOG_TAG, "Fell asleep at $now, planned ${result.scheduled}")
                 ScheduleResult.KeptExisting ->
                     Log.i(LOG_TAG, "Fell asleep again at $now, too close to the target to move the alarm")
+                ScheduleResult.NothingInFuture ->
+                    Log.i(LOG_TAG, "Fell asleep at $now, but every planned signal is already in the past")
             }
         }
     }
