@@ -8,6 +8,14 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Exact alarms. Android 13 and later grant USE_EXACT_ALARM at install
+         time to alarm clock apps; Android 12 needs SCHEDULE_EXACT_ALARM,
+         which the user can revoke. Older versions need neither. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+
     <application
         android:allowBackup="false"
         android:icon="@android:drawable/ic_lock_idle_alarm"
