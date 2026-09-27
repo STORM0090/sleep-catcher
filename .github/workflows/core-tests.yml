@@ -24,3 +24,22 @@ jobs:
 
       - name: Run tests
         run: ctest --test-dir build/sleepcore --output-on-failure
+
+  kotlin:
+    runs-on: ubuntu-latest
+    # The Android tooling on the runner changes from time to time, so a red
+    # result here should not hide whether the core itself still works.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run tests
+        run: ./gradlew testDebugUnitTest
