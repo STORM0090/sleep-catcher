@@ -16,10 +16,14 @@ class AndroidAlarmGateway(private val context: Context) : AlarmGateway {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
 
     // setAlarmClock is the strongest promise Android makes: it survives Doze
-    // and the system shows the pending alarm in the status bar.
+    // and the system shows the pending alarm in the status bar. Tapping that
+    // icon opens the app.
     override fun scheduleLoud(index: Int, atMillis: Long) {
+        val showApp = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { launch ->
+            PendingIntent.getActivity(context, 0, launch, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        }
         alarmManager.setAlarmClock(
-            AlarmManager.AlarmClockInfo(atMillis, null),
+            AlarmManager.AlarmClockInfo(atMillis, showApp),
             operation(index, SignalKind.LOUD_ALARM),
         )
     }

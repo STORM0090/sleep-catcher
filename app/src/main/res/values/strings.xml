@@ -2,6 +2,42 @@
 <resources>
     <string name="app_name">Sleep Catcher</string>
 
+    <string name="mode_title">Wake-up mode</string>
+    <string name="mode_refreshed">Refreshed: one alarm on a sleep cycle boundary</string>
+    <string name="mode_catch_dream">Catch a dream: a soft nudge, then a safety alarm</string>
+    <string name="target_title">Wake me up by</string>
+
+    <string name="arm">Arm</string>
+    <string name="disarm">Disarm</string>
+    <string name="preview">Preview a night starting now</string>
+    <string name="simulate">Pretend I just fell asleep</string>
+
+    <string name="permissions_title">Permissions</string>
+    <string name="open_usage_access">Open usage access settings</string>
+    <string name="open_full_screen">Allow full-screen alarms</string>
+    <string name="open_battery">Open battery settings</string>
+
+    <string name="plan_soft_pulse">soft pulse</string>
+    <string name="plan_loud_alarm">loud alarm</string>
+    <string name="plan_natural_wake_warning">You will probably wake up on your own before this alarm</string>
+
+    <string name="status_armed">Armed: lock the phone after TikTok to start the night</string>
+    <string name="status_not_armed">Not armed</string>
+    <string name="status_usage_access">Usage access</string>
+    <string name="status_exact_alarms">Exact alarms</string>
+    <string name="status_full_screen_alarm">Full-screen alarm</string>
+    <string name="status_battery_exemption">Battery exemption</string>
+    <string name="status_allowed">allowed</string>
+    <string name="status_missing">missing</string>
+    <string name="status_fell_asleep">Fell asleep</string>
+    <string name="status_final_wake">Final wake-up</string>
+
+    <string name="usage_access_needed">Turn on usage access first, otherwise the app cannot see TikTok</string>
+    <string name="notifications_needed">Without notifications the app cannot keep watching at night</string>
+    <string name="kept_existing_plan">Less than one cycle is left, so the current plan stays</string>
+    <string name="nothing_in_future">Every signal of that plan is already in the past</string>
+    <string name="settings_not_found">This phone has no such settings page</string>
+
     <string name="alarm_title">Time to wake up</string>
     <string name="alarm_stop">Stop</string>
 

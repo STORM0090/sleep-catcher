@@ -32,6 +32,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SleepCatcher">
 
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <!-- Lights up the screen over the lock screen and stays out of the
              recent apps, so it looks like a clock app's alarm, not like the app. -->
         <activity

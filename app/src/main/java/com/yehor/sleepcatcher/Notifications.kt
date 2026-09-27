@@ -59,14 +59,19 @@ object Notifications {
     fun canUseFullScreenIntent(context: Context): Boolean =
         NotificationManagerCompat.from(context).canUseFullScreenIntent()
 
-    fun watchNotification(context: Context): Notification =
-        NotificationCompat.Builder(context, WATCH_CHANNEL)
+    fun watchNotification(context: Context): Notification {
+        val openApp = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { launch ->
+            PendingIntent.getActivity(context, 0, launch, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        }
+        return NotificationCompat.Builder(context, WATCH_CHANNEL)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(context.getString(R.string.watch_title))
             .setContentText(context.getString(R.string.watch_text))
+            .setContentIntent(openApp)
             .setOngoing(true)
             .setSilent(true)
             .build()
+    }
 
     fun alarmNotification(context: Context): Notification {
         val stop = PendingIntent.getService(
