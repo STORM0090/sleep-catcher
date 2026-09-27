@@ -29,6 +29,13 @@ class CycleAlarmScheduler(
     fun previewPlan(onsetMillis: Long): AlarmPlan = engine.buildPlan(requestFor(onsetMillis))
 
     fun scheduleFromOnset(onsetMillis: Long): ScheduleResult {
+        if (!gateway.canScheduleExact()) {
+            // Android drops every exact alarm of an app when this permission
+            // is taken away, so there is no old plan left to keep either.
+            cancelScheduled()
+            return ScheduleResult.ExactAlarmsNotAllowed
+        }
+
         val now = clock.nowMillis()
         val decision = OnsetPolicy.decide(
             onsetMillis = onsetMillis,
@@ -50,7 +57,14 @@ class CycleAlarmScheduler(
         settings.lastOnsetMillis = onsetMillis
         if (future.isEmpty()) return ScheduleResult.NothingInFuture
 
-        future.forEachIndexed(::schedule)
+        try {
+            future.forEachIndexed(::schedule)
+        } catch (e: SecurityException) {
+            // The permission can disappear between the check and this call.
+            // Half a plan is worse than none, so take back what did get set.
+            future.indices.forEach(gateway::cancel)
+            return ScheduleResult.ExactAlarmsNotAllowed
+        }
         settings.scheduledSignalCount = future.size
         settings.plannedFinalWakeMillis = future.last().atMillis
         return ScheduleResult.Scheduled(plan, future)

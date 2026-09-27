@@ -13,9 +13,14 @@ class RecordingAlarmGateway(var exactAllowed: Boolean = true) : AlarmGateway {
 
     val calls = mutableListOf<Call>()
 
+    // Set to make the next loud alarm fail the way Android does when the
+    // exact alarm permission is revoked halfway through.
+    var loudFailure: SecurityException? = null
+
     override fun canScheduleExact(): Boolean = exactAllowed
 
     override fun scheduleLoud(index: Int, atMillis: Long) {
+        loudFailure?.let { throw it }
         calls += Call.Loud(index, atMillis)
     }
 

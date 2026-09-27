@@ -5,8 +5,11 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.yehor.sleepcatcher.LOG_TAG
+import com.yehor.sleepcatcher.Notifications
+import com.yehor.sleepcatcher.R
 import com.yehor.sleepcatcher.data.PrefsSettingsStore
 import com.yehor.sleepcatcher.scheduling.CycleAlarmScheduler
+import com.yehor.sleepcatcher.scheduling.ScheduleResult
 import com.yehor.sleepcatcher.time.WallClock
 
 class BootReceiver : BroadcastReceiver() {
@@ -34,6 +37,9 @@ class BootReceiver : BroadcastReceiver() {
                 settings.plannedFinalWakeMillis = 0L
                 val result = CycleAlarmScheduler.create(context).scheduleFromOnset(action.onsetMillis)
                 Log.i(LOG_TAG, "Restored the night after a reboot: $result")
+                if (result == ScheduleResult.ExactAlarmsNotAllowed) {
+                    Notifications.showProblem(context, R.string.problem_exact_alarms)
+                }
             }
         }
     }

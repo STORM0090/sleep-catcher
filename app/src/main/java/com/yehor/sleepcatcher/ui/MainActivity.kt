@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var modeGroup: RadioGroup
     private lateinit var targetTime: TimePicker
     private lateinit var armButton: Button
+    private lateinit var exactAlarmButton: Button
     private lateinit var fullScreenButton: Button
 
     // Read each time, so the screen follows the phone when you travel.
@@ -83,6 +84,7 @@ class MainActivity : AppCompatActivity() {
         modeGroup = findViewById(R.id.mode_group)
         targetTime = findViewById(R.id.target_time)
         armButton = findViewById(R.id.arm_button)
+        exactAlarmButton = findViewById(R.id.exact_alarm_button)
         fullScreenButton = findViewById(R.id.full_screen_button)
 
         targetTime.setIs24HourView(true)
@@ -101,6 +103,12 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.usage_access_button).setOnClickListener {
             openSettings(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
         }
+        exactAlarmButton.setOnClickListener {
+            // Only Android 12 lets the user take exact alarms away from an alarm app.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                openSettings(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, "package:$packageName".toUri()))
+            }
+        }
         findViewById<Button>(R.id.battery_button).setOnClickListener {
             openSettings(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         }
@@ -118,11 +126,15 @@ class MainActivity : AppCompatActivity() {
         refresh()
     }
 
-    // Arming needs usage access to see TikTok, and notifications because the
-    // watch and the alarm run as foreground services.
+    // Arming needs usage access to see TikTok, exact alarms to ring on time,
+    // and notifications because the watch and the alarm run as foreground services.
     private fun withPermissions(action: () -> Unit) {
         if (!detector.hasUsageAccess()) {
             toast(R.string.usage_access_needed)
+            return
+        }
+        if (!gateway.canScheduleExact()) {
+            toast(R.string.exact_alarms_needed)
             return
         }
         val needsNotificationPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -167,6 +179,7 @@ class MainActivity : AppCompatActivity() {
             is ScheduleResult.Scheduled -> showPlan(result.plan)
             ScheduleResult.KeptExisting -> toast(R.string.kept_existing_plan)
             ScheduleResult.NothingInFuture -> toast(R.string.nothing_in_future)
+            ScheduleResult.ExactAlarmsNotAllowed -> toast(R.string.exact_alarms_needed)
         }
         refresh()
     }
@@ -197,6 +210,7 @@ class MainActivity : AppCompatActivity() {
         )
         statusText.text = StatusLines.build(status, statusLabels(), zone).joinToString("\n")
         armButton.setText(if (status.armed) R.string.disarm else R.string.arm)
+        exactAlarmButton.isVisible = !status.exactAlarms
         fullScreenButton.isVisible = !status.fullScreenAlarm
     }
 

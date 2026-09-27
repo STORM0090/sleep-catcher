@@ -11,4 +11,6 @@ sealed interface ScheduleResult {
     data object KeptExisting : ScheduleResult
 
     data object NothingInFuture : ScheduleResult
+
+    data object ExactAlarmsNotAllowed : ScheduleResult
 }

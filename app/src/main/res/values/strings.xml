@@ -14,6 +14,7 @@
 
     <string name="permissions_title">Permissions</string>
     <string name="open_usage_access">Open usage access settings</string>
+    <string name="open_exact_alarms">Allow exact alarms</string>
     <string name="open_full_screen">Allow full-screen alarms</string>
     <string name="open_battery">Open battery settings</string>
 
@@ -33,6 +34,7 @@
     <string name="status_final_wake">Final wake-up</string>
 
     <string name="usage_access_needed">Turn on usage access first, otherwise the app cannot see TikTok</string>
+    <string name="exact_alarms_needed">Allow exact alarms first, otherwise the alarm cannot ring on time</string>
     <string name="notifications_needed">Without notifications the app cannot keep watching at night</string>
     <string name="kept_existing_plan">Less than one cycle is left, so the current plan stays</string>
     <string name="nothing_in_future">Every signal of that plan is already in the past</string>
@@ -45,6 +47,7 @@
     <string name="watch_text">Lock the phone after TikTok and the alarm plans itself</string>
 
     <string name="problem_usage_access">Usage access is off, so the app cannot tell when you fall asleep</string>
+    <string name="problem_exact_alarms">Exact alarms are not allowed, so the alarm for tonight could not be set</string>
 
     <string name="notification_channel_watch">Sleep detection</string>
     <string name="notification_channel_alarm">Alarm</string>

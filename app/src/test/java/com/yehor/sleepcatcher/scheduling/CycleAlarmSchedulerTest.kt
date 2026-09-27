@@ -132,6 +132,43 @@ class CycleAlarmSchedulerTest {
     }
 
     @Test
+    fun withoutExactAlarmsNothingIsScheduled() {
+        gateway.exactAllowed = false
+
+        val result = scheduler.scheduleFromOnset(at(1))
+
+        assertEquals(ScheduleResult.ExactAlarmsNotAllowed, result)
+        assertTrue(gateway.calls.isEmpty())
+    }
+
+    @Test
+    fun losingExactAlarmsAlsoForgetsTheOldPlan() {
+        scheduler.scheduleFromOnset(at(1))
+        gateway.calls.clear()
+        gateway.exactAllowed = false
+
+        val result = scheduler.scheduleFromOnset(at(2))
+
+        assertEquals(ScheduleResult.ExactAlarmsNotAllowed, result)
+        assertEquals(listOf(Call.Cancel(0)), gateway.calls)
+        assertEquals(0, settings.scheduledSignalCount)
+        assertEquals(0L, settings.plannedFinalWakeMillis)
+    }
+
+    @Test
+    fun aRefusalHalfwayTakesBackWhatWasAlreadySet() {
+        engine.plan = planOf(soft(at(7, 15)), loud(at(9)))
+        gateway.loudFailure = SecurityException("exact alarms revoked")
+
+        val result = scheduler.scheduleFromOnset(at(1))
+
+        assertEquals(ScheduleResult.ExactAlarmsNotAllowed, result)
+        assertEquals(listOf(Call.Soft(0, at(7, 15)), Call.Cancel(0), Call.Cancel(1)), gateway.calls)
+        assertEquals(0, settings.scheduledSignalCount)
+        assertEquals(0L, settings.plannedFinalWakeMillis)
+    }
+
+    @Test
     fun previewingDoesNotTouchTheAlarms() {
         val plan = scheduler.previewPlan(at(1))
 
