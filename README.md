@@ -34,7 +34,7 @@ How it all fits together: [docs/how-it-was-built.md](docs/how-it-was-built.md).
 ## What you need
 
 - An Android phone with Android 10 or newer. Built and used on a Galaxy S24
-  Ultra.
+  Ultra with Android 16.
 - Android Studio. Gradle downloads the NDK (27.0.12077973) and CMake (3.22.1)
   by itself the first time, if the SDK licenses are accepted.
 - JDK 17 for Gradle. Newer JDKs do not work with this Gradle version. In
@@ -132,6 +132,8 @@ app/src/test/                      JUnit tests, with a fake planner, settings an
   warning about it only appears in the preview and when pretending to fall
   asleep, not at night.
 - After a reboot the alarms come back only once the phone has been unlocked.
+  On the S24 it then took about a minute and a half until Android told the
+  app that the phone had started.
 - If Samsung stops the background service and you do not open the app, a
   screen-off can be missed. The loud alarm itself is not affected.
 - Android records which app is open with a small delay, so locking the phone

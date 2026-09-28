@@ -97,6 +97,19 @@ start time, skipping anything that should already have rung.
   went back and folded most of them into the places that use them. The code
   got shorter and easier to follow, and the tests that mattered stayed.
 
+The first run on the phone found two more things the tests on the PC could
+not:
+
+- Android 16 warned that the native library was not aligned for 16 KB
+  memory pages. NDK 27 only does that with one extra linker flag.
+- Trying "Catch a dream" with a target a few minutes ahead showed that the
+  alarm moved hours later when the target was within the first 15 minutes.
+  That broke the one promise of the mode: never ring later than asked.
+
+After that the whole chain worked on the phone: TikTok, screen off, alarm
+set, alarm over the lock screen, Stop, Disarm, and a reboot in the middle of
+a "night" that brought the soft pulse back on time.
+
 ## 7. What is still open
 
 - The hour after which I wake up by myself anyway is fixed at 11:00 in the
