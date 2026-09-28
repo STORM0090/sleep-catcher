@@ -12,6 +12,8 @@ if(ANDROID)
     # Loaded from Kotlin with System.loadLibrary("sleepcore").
     add_library(sleepcore SHARED jni_bridge.cpp)
     target_link_libraries(sleepcore sleepcore_lib)
+    # Newer phones can use 16 KB memory pages, and NDK 27 does not align for that by itself.
+    target_link_options(sleepcore PRIVATE "-Wl,-z,max-page-size=16384")
 else()
     enable_testing()
     add_subdirectory(tests)
