@@ -1,16 +1,15 @@
 package com.yehor.sleepcatcher.testing
 
 import com.yehor.sleepcatcher.core.WakeMode
-import com.yehor.sleepcatcher.data.SettingsDefaults
 import com.yehor.sleepcatcher.data.SettingsStore
 
-// Same contract as the stored settings, but nothing leaves the test.
+// Same as the real settings, but nothing is saved to a file.
 class InMemorySettingsStore : SettingsStore {
-    override var mode: WakeMode = SettingsDefaults.MODE
-    override var targetHour: Int = SettingsDefaults.TARGET_HOUR
-    override var targetMinute: Int = SettingsDefaults.TARGET_MINUTE
-    override var armed: Boolean = false
-    override var lastOnsetMillis: Long = 0L
-    override var scheduledSignalCount: Int = 0
-    override var plannedFinalWakeMillis: Long = 0L
+    override var mode = WakeMode.REFRESHED
+    override var targetHour = 9
+    override var targetMinute = 0
+    override var armed = false
+    override var lastOnsetMillis = 0L
+    override var scheduledSignalCount = 0
+    override var plannedFinalWakeMillis = 0L
 }

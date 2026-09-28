@@ -13,9 +13,8 @@ fun hhmm(millis: Long): String {
     return "%02d:%02d".format(minutes / 60, minutes % 60)
 }
 
-fun soft(atMillis: Long): AlarmSignal = AlarmSignal(atMillis, SignalKind.SOFT_PULSE)
+fun soft(atMillis: Long) = AlarmSignal(atMillis, SignalKind.SOFT_PULSE)
 
-fun loud(atMillis: Long): AlarmSignal = AlarmSignal(atMillis, SignalKind.LOUD_ALARM)
+fun loud(atMillis: Long) = AlarmSignal(atMillis, SignalKind.LOUD_ALARM)
 
-fun planOf(vararg signals: AlarmSignal, warning: Boolean = false): AlarmPlan =
-    AlarmPlan(signals.toList(), warning)
+fun planOf(vararg signals: AlarmSignal) = AlarmPlan(signals.toList(), false)

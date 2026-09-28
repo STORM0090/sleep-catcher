@@ -1,12 +1,12 @@
 package com.yehor.sleepcatcher.core
 
-// The ids must stay in step with the enums in cpp/sleepcore/cycle_planner.h.
+// The numbers must match the enums in cpp/sleepcore/cycle_planner.h.
 enum class WakeMode(val nativeId: Int) {
     REFRESHED(0),
     CATCH_DREAM(1);
 
     companion object {
-        fun fromNativeId(id: Int): WakeMode? = entries.firstOrNull { it.nativeId == id }
+        fun fromNativeId(id: Int): WakeMode? = entries.find { it.nativeId == id }
     }
 }
 
@@ -15,7 +15,7 @@ enum class SignalKind(val nativeId: Int) {
     LOUD_ALARM(1);
 
     companion object {
-        fun fromNativeId(id: Int): SignalKind? = entries.firstOrNull { it.nativeId == id }
+        fun fromNativeId(id: Int): SignalKind? = entries.find { it.nativeId == id }
     }
 }
 
@@ -24,26 +24,24 @@ data class AlarmSignal(val atMillis: Long, val kind: SignalKind)
 data class AlarmPlan(val signals: List<AlarmSignal>, val naturalWakeWarning: Boolean) {
 
     init {
-        require(signals.isNotEmpty()) { "A plan without signals would wake nobody" }
+        require(signals.isNotEmpty()) { "A plan needs at least one signal" }
     }
 
-    val finalWakeMillis: Long get() = signals.last().atMillis
+    val finalWakeMillis: Long
+        get() = signals.last().atMillis
 }
 
 data class PlanTuning(
     val cycleMinutes: Int = 90,
     val fallAsleepMinutes: Int = 15,
     val minCycles: Int = 3,
-    val softGapMinutes: Int = 20,
-) {
-    val cycleMillis: Long get() = cycleMinutes * 60_000L
-    val fallAsleepMillis: Long get() = fallAsleepMinutes * 60_000L
-}
+    val softGapMinutes: Int = 20
+)
 
 data class PlanRequest(
     val onsetMillis: Long,
     val targetMillis: Long,
     val mode: WakeMode,
     val naturalWakeMillis: Long,
-    val tuning: PlanTuning = PlanTuning(),
+    val tuning: PlanTuning = PlanTuning()
 )
