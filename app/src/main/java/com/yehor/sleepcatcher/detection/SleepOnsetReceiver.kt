@@ -8,6 +8,7 @@ import com.yehor.sleepcatcher.LOG_TAG
 import com.yehor.sleepcatcher.Notifications
 import com.yehor.sleepcatcher.R
 import com.yehor.sleepcatcher.data.PrefsSettingsStore
+import com.yehor.sleepcatcher.formatTime
 import com.yehor.sleepcatcher.scheduling.CycleAlarmScheduler
 import com.yehor.sleepcatcher.scheduling.ScheduleResult
 
@@ -35,7 +36,10 @@ class SleepOnsetReceiver : BroadcastReceiver() {
         }
 
         val result = CycleAlarmScheduler.create(context).scheduleFromOnset(now, now)
-        Log.i(LOG_TAG, "Fell asleep at $now: $result")
+        Log.i(LOG_TAG, "Fell asleep at ${formatTime(now)}: $result")
+        if (result == ScheduleResult.SCHEDULED) {
+            Log.i(LOG_TAG, "Last alarm at ${formatTime(settings.plannedFinalWakeMillis)}")
+        }
         if (result == ScheduleResult.NO_EXACT_ALARMS) {
             Notifications.showProblem(context, R.string.problem_exact_alarms)
         }

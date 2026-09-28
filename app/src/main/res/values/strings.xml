@@ -18,20 +18,20 @@
     <string name="open_full_screen">Allow full-screen alarms</string>
     <string name="open_battery">Open battery settings</string>
 
-    <string name="plan_soft_pulse">soft pulse</string>
-    <string name="plan_loud_alarm">loud alarm</string>
+    <string name="plan_soft_pulse">%1$s - soft pulse</string>
+    <string name="plan_loud_alarm">%1$s - loud alarm</string>
     <string name="plan_natural_wake_warning">You will probably wake up on your own before this alarm</string>
 
     <string name="status_armed">Armed: lock the phone after TikTok to start the night</string>
     <string name="status_not_armed">Not armed</string>
-    <string name="status_usage_access">Usage access</string>
-    <string name="status_exact_alarms">Exact alarms</string>
-    <string name="status_full_screen_alarm">Full-screen alarm</string>
-    <string name="status_battery_exemption">Battery exemption</string>
+    <string name="status_usage_access">Usage access: %1$s</string>
+    <string name="status_exact_alarms">Exact alarms: %1$s</string>
+    <string name="status_full_screen_alarm">Full-screen alarm: %1$s</string>
+    <string name="status_battery_exemption">Battery exemption: %1$s</string>
     <string name="status_allowed">allowed</string>
     <string name="status_missing">missing</string>
-    <string name="status_fell_asleep">Fell asleep</string>
-    <string name="status_final_wake">Final wake-up</string>
+    <string name="status_fell_asleep">Fell asleep: %1$s</string>
+    <string name="status_final_wake">Final wake-up: %1$s</string>
 
     <string name="usage_access_needed">Turn on usage access first, otherwise the app cannot see TikTok</string>
     <string name="exact_alarms_needed">Allow exact alarms first, otherwise the alarm cannot ring on time</string>
