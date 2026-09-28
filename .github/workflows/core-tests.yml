@@ -1,8 +1,6 @@
-name: core tests
+name: tests
 
-on:
-  push:
-  pull_request:
+on: [push, pull_request]
 
 jobs:
   cpp:
@@ -10,25 +8,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache the googletest download
-        uses: actions/cache@v4
-        with:
-          path: build/sleepcore/_deps
-          key: gtest-${{ hashFiles('app/src/main/cpp/tests/CMakeLists.txt') }}
-
-      - name: Configure
-        run: cmake -S app/src/main/cpp -B build/sleepcore -DCMAKE_BUILD_TYPE=Debug
-
-      - name: Build
-        run: cmake --build build/sleepcore --parallel
-
-      - name: Run tests
-        run: ctest --test-dir build/sleepcore --output-on-failure
+      - name: Build and run the C++ tests
+        run: |
+          cmake -S app/src/main/cpp -B build/sleepcore
+          cmake --build build/sleepcore
+          ctest --test-dir build/sleepcore --output-on-failure
 
   kotlin:
     runs-on: ubuntu-latest
-    # The Android tooling on the runner changes from time to time, so a red
-    # result here should not hide whether the core itself still works.
+    # Allowed to fail: the Android tools on the runner change without notice.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
@@ -37,9 +25,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Run tests
+      - name: Run the Kotlin tests
         run: ./gradlew testDebugUnitTest

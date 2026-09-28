@@ -6,13 +6,13 @@
 namespace sleepcore {
 
 enum class Mode {
-    Refreshed = 0,   // one clear alarm on a cycle boundary
-    CatchDream = 1   // gentle nudge first, loud safety alarm at the target
+    Refreshed = 0,   // one alarm on a cycle boundary
+    CatchDream = 1   // soft nudge first, loud alarm at the target
 };
 
 enum class SignalKind {
-    SoftPulse = 0,   // short vibration only, meant not to fully wake the sleeper
-    LoudAlarm = 1    // sound + strong vibration
+    SoftPulse = 0,   // short weak vibration
+    LoudAlarm = 1    // sound and strong vibration
 };
 
 struct Signal {
@@ -22,33 +22,31 @@ struct Signal {
 
 struct Tuning {
     int cycleMinutes = 90;
-    int fallAsleepMinutes = 15;   // assumed latency between screen-off and actual sleep
-    int minCycles = 3;            // fewer cycles than this counts as "too short"
-    int softGapMinutes = 20;      // a soft pulse closer than this to the loud alarm is pointless
+    int fallAsleepMinutes = 15;   // time between screen off and real sleep
+    int minCycles = 3;            // shorter nights count as too short
+    int softGapMinutes = 20;      // minimum time between the soft pulse and the loud alarm
 };
 
 struct PlanRequest {
-    int64_t onsetMs = 0;          // screen went off after the trigger app
-    int64_t targetMs = 0;         // latest acceptable wake-up time
+    int64_t onsetMs = 0;          // when the screen went off
+    int64_t targetMs = 0;         // latest time to wake up
     Mode mode = Mode::Refreshed;
-    int64_t naturalWakeMs = 0;    // after this moment the sleeper tends to wake anyway (0 = unknown)
+    int64_t naturalWakeMs = 0;    // I usually wake up by myself after this (0 = unknown)
     Tuning tuning;
 };
 
 struct Plan {
-    std::vector<Signal> signals;   // ascending by time, last one is the final wake-up
+    std::vector<Signal> signals;  // sorted by time, the last one is the loud alarm
     bool naturalWakeWarning = false;
 };
 
-// True for integers that map to a known Mode. Values arrive as plain ints
-// from the Android side, so they cannot be trusted blindly.
-bool isValidMode(int rawMode);
+// The mode comes from Kotlin as a plain int.
+bool isValidMode(int mode);
 
-// Replaces zero or negative tuning values with safe ones. Every public
-// function applies this itself, so callers may pass raw user input.
+// Replaces zero or negative values with safe ones.
 Tuning sanitize(Tuning tuning);
 
-// Ends of sleep cycles 1..count, measured from onset + fall-asleep latency.
+// End of each sleep cycle, counted from onset + fall asleep time.
 std::vector<int64_t> cycleBoundaries(int64_t onsetMs, const Tuning& tuning, int count);
 
 Plan buildPlan(const PlanRequest& req);

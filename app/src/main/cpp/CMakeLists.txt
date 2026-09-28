@@ -3,26 +3,15 @@ project(sleepcatcher_core LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Makefile and Ninja builds leave the build type empty, which compiles
-# with no flags at all. Pick one so a plain configure behaves sensibly.
-get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-if(NOT isMultiConfig AND NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
-endif()
-
-# Pure planning logic with no Android dependencies, so it can be built
-# and unit-tested on a desktop machine.
+# The planner without any Android code, so it also builds and runs on a PC.
 add_library(sleepcore_lib STATIC sleepcore/cycle_planner.cpp)
-target_include_directories(sleepcore_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/sleepcore)
-# Required to fold this static library into a shared one on Android.
-set_target_properties(sleepcore_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(sleepcore_lib PUBLIC sleepcore)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+if(ANDROID)
     # Loaded from Kotlin with System.loadLibrary("sleepcore").
     add_library(sleepcore SHARED jni_bridge.cpp)
-    target_link_libraries(sleepcore PRIVATE sleepcore_lib)
+    target_link_libraries(sleepcore sleepcore_lib)
 else()
     enable_testing()
     add_subdirectory(tests)

@@ -1,111 +1,74 @@
 #include "cycle_planner.h"
 
 namespace sleepcore {
-namespace {
 
-constexpr int64_t kMsPerMinute = 60 * 1000;
+static const int64_t kMinute = 60 * 1000;
 
-int64_t minutesToMs(int minutes) {
-    return static_cast<int64_t>(minutes) * kMsPerMinute;
+static int64_t minutes(int count) {
+    return count * kMinute;
 }
 
-int64_t sleepStart(int64_t onsetMs, const Tuning& tuning) {
-    return onsetMs + minutesToMs(tuning.fallAsleepMinutes);
+// How many whole cycles fit between start and limit.
+static int64_t cyclesBetween(int64_t start, int64_t limit, int64_t cycle) {
+    if (limit <= start) return 0;
+    return (limit - start) / cycle;
 }
 
-int64_t boundaryAt(int64_t sleepStartMs, int64_t cycleMs, int64_t k) {
-    return sleepStartMs + k * cycleMs;
-}
-
-// Number of whole cycles that fit between sleepStart and limit (0 if limit is earlier).
-int64_t fullCyclesBefore(int64_t sleepStartMs, int64_t limitMs, int64_t cycleMs) {
-    if (limitMs <= sleepStartMs) return 0;
-    return (limitMs - sleepStartMs) / cycleMs;
-}
-
-// Latest boundary that is not after the target. If that would give a very
-// short night, prefer the minimum number of cycles even if it means waking
-// a bit later than asked.
-int64_t refreshedAlarmAt(int64_t sleepStartMs, int64_t targetMs, int64_t cycleMs, int minCycles) {
-    int64_t k = fullCyclesBefore(sleepStartMs, targetMs, cycleMs);
+// Last cycle end before the target, but at least minCycles into the night.
+static int64_t refreshedAlarm(int64_t sleepStart, int64_t target, int64_t cycle, int minCycles) {
+    int64_t k = cyclesBetween(sleepStart, target, cycle);
     if (k < minCycles) k = minCycles;
-    return boundaryAt(sleepStartMs, cycleMs, k);
+    return sleepStart + k * cycle;
 }
 
-}  // namespace
-
-bool isValidMode(int rawMode) {
-    return rawMode == static_cast<int>(Mode::Refreshed) || rawMode == static_cast<int>(Mode::CatchDream);
+bool isValidMode(int mode) {
+    return mode == 0 || mode == 1;
 }
 
-Tuning sanitize(Tuning tuning) {
-    const Tuning defaults;
-    if (tuning.cycleMinutes < 1) tuning.cycleMinutes = defaults.cycleMinutes;
-    if (tuning.fallAsleepMinutes < 0) tuning.fallAsleepMinutes = 0;
-    if (tuning.minCycles < 1) tuning.minCycles = 1;
-    if (tuning.softGapMinutes < 0) tuning.softGapMinutes = 0;
-    return tuning;
+Tuning sanitize(Tuning t) {
+    if (t.cycleMinutes < 1) t.cycleMinutes = 90;
+    if (t.fallAsleepMinutes < 0) t.fallAsleepMinutes = 0;
+    if (t.minCycles < 1) t.minCycles = 1;
+    if (t.softGapMinutes < 0) t.softGapMinutes = 0;
+    return t;
 }
 
-std::vector<int64_t> cycleBoundaries(int64_t onsetMs, const Tuning& rawTuning, int count) {
-    std::vector<int64_t> out;
-    if (count <= 0) return out;
+std::vector<int64_t> cycleBoundaries(int64_t onsetMs, const Tuning& tuning, int count) {
+    Tuning t = sanitize(tuning);
+    int64_t sleepStart = onsetMs + minutes(t.fallAsleepMinutes);
+    int64_t cycle = minutes(t.cycleMinutes);
 
-    const Tuning tuning = sanitize(rawTuning);
-    const int64_t start = sleepStart(onsetMs, tuning);
-    const int64_t cycle = minutesToMs(tuning.cycleMinutes);
-    out.reserve(static_cast<size_t>(count));
-    for (int64_t k = 1; k <= count; ++k) {
-        out.push_back(boundaryAt(start, cycle, k));
+    std::vector<int64_t> result;
+    for (int k = 1; k <= count; k++) {
+        result.push_back(sleepStart + k * cycle);
     }
-    return out;
+    return result;
 }
 
 Plan buildPlan(const PlanRequest& req) {
+    Tuning t = sanitize(req.tuning);
+    int64_t sleepStart = req.onsetMs + minutes(t.fallAsleepMinutes);
+    int64_t cycle = minutes(t.cycleMinutes);
     Plan plan;
-    const Tuning tuning = sanitize(req.tuning);
-    const int64_t start = sleepStart(req.onsetMs, tuning);
-    const int64_t cycle = minutesToMs(tuning.cycleMinutes);
 
-    switch (req.mode) {
-        case Mode::CatchDream: {
-            if (req.targetMs <= start) {
-                // The target is already behind us; a safety alarm there would
-                // fire immediately, so plan a normal night instead.
-                plan.signals.push_back(
-                        {refreshedAlarmAt(start, req.targetMs, cycle, tuning.minCycles), SignalKind::LoudAlarm});
-                break;
-            }
-            // The loud alarm is a safety net exactly at the target time, so the
-            // sleeper is never woken later than requested. The soft pulse goes on
-            // the last boundary that leaves a useful gap before it.
-            const int64_t latestSoft = req.targetMs - minutesToMs(tuning.softGapMinutes);
-            const int64_t k = fullCyclesBefore(start, latestSoft, cycle);
-            const int64_t softAt = boundaryAt(start, cycle, k);
-            // Without a gap a boundary can land on the target itself, and two
-            // signals at the same moment are one signal too many.
-            if (k >= tuning.minCycles && softAt < req.targetMs) {
-                plan.signals.push_back({softAt, SignalKind::SoftPulse});
-            }
-            plan.signals.push_back({req.targetMs, SignalKind::LoudAlarm});
-            break;
+    if (req.mode == Mode::CatchDream && req.targetMs > sleepStart) {
+        // Soft pulse on the last cycle end that is at least softGap before the target.
+        int64_t latestSoft = req.targetMs - minutes(t.softGapMinutes);
+        int64_t k = cyclesBetween(sleepStart, latestSoft, cycle);
+        int64_t softAt = sleepStart + k * cycle;
+        if (k >= t.minCycles && softAt < req.targetMs) {
+            plan.signals.push_back({softAt, SignalKind::SoftPulse});
         }
-        case Mode::Refreshed:
-        default: {
-            plan.signals.push_back(
-                    {refreshedAlarmAt(start, req.targetMs, cycle, tuning.minCycles), SignalKind::LoudAlarm});
-            break;
-        }
+        // Loud alarm exactly at the target, so it never wakes me later than I asked.
+        plan.signals.push_back({req.targetMs, SignalKind::LoudAlarm});
+    } else {
+        // Refreshed mode, an unknown mode, or a target that has already passed.
+        int64_t alarmAt = refreshedAlarm(sleepStart, req.targetMs, cycle, t.minCycles);
+        plan.signals.push_back({alarmAt, SignalKind::LoudAlarm});
     }
 
-    // Only the loud alarm decides the wake-up, so soft pulses are ignored here.
     if (req.naturalWakeMs > 0) {
-        for (auto it = plan.signals.rbegin(); it != plan.signals.rend(); ++it) {
-            if (it->kind == SignalKind::LoudAlarm) {
-                plan.naturalWakeWarning = it->atMs > req.naturalWakeMs;
-                break;
-            }
-        }
+        plan.naturalWakeWarning = plan.signals.back().atMs > req.naturalWakeMs;
     }
     return plan;
 }

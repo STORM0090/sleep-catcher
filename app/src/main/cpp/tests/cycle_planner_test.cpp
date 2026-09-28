@@ -4,21 +4,18 @@
 
 using namespace sleepcore;
 
-namespace {
+// Times are counted from an arbitrary midnight, so at(9) is 09:00.
+static int64_t at(int hour, int minute = 0) {
+    return (hour * 60 + minute) * 60 * 1000LL;
+}
 
-// Times are minutes since an arbitrary midnight, so at(9) is 09:00.
-constexpr int64_t kMs = 60 * 1000;
-int64_t at(int hour, int minute = 0) { return (hour * 60 + minute) * kMs; }
-
-PlanRequest request(Mode mode, int64_t onset, int64_t target) {
+static PlanRequest request(Mode mode, int64_t onset, int64_t target) {
     PlanRequest req;
     req.mode = mode;
     req.onsetMs = onset;
     req.targetMs = target;
     return req;
 }
-
-}  // namespace
 
 TEST(CycleBoundaries, StartAfterLatencyAndRepeatEveryCycle) {
     const auto b = cycleBoundaries(at(0), Tuning{}, 3);
