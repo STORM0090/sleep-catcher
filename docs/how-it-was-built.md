@@ -57,9 +57,10 @@ Kotlin objects from C++ takes a lot more code. The bridge checks its input
 and turns C++ exceptions into Java ones, since an exception that crosses JNI
 kills the whole app.
 
-On the Kotlin side everything that touches Android sits behind a small
-interface: the planner, the clock, the settings and AlarmManager. That way
-the scheduling logic runs in plain JUnit tests with fakes, without a phone.
+On the Kotlin side three things sit behind a small interface: the planner,
+the settings and AlarmManager. The current time is simply passed in as a
+parameter. That way the scheduling logic runs in plain JUnit tests with
+fakes, without a phone.
 
 ## 5. What happens at night
 
@@ -91,6 +92,10 @@ start time, skipping anything that should already have rung.
   and Android fires alarms set in the past immediately.
 - Android 15 draws apps behind the status bar by default, which would have
   pushed the first line of text under the clock.
+- The first working version had too many tiny classes: a separate class for
+  every rule, a clock interface, formatter objects for the status text. I
+  went back and folded most of them into the places that use them. The code
+  got shorter and easier to follow, and the tests that mattered stayed.
 
 ## 7. What is still open
 

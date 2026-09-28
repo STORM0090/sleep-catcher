@@ -79,7 +79,8 @@ To try it without waiting for a night: set the time a few minutes ahead,
 choose "Catch a dream" and press "Pretend I just fell asleep". "Preview a
 night starting now" only shows the plan and sets nothing.
 
-Everything the app decides goes to the log:
+Everything the app decides goes to the log, for example
+`Fell asleep at Thu 01:03: SCHEDULED` or `Screen off after com.whatsapp, not TikTok`:
 
 ```
 adb logcat -s SleepCatcher
@@ -111,17 +112,17 @@ allowed to fail, because the Android tooling on the runner changes on its own.
 ## Layout
 
 ```
-app/src/main/cpp/sleepcore/     the planner: cycle boundaries and the two modes
-app/src/main/cpp/tests/         GoogleTest tests for the planner
-app/src/main/cpp/jni_bridge.cpp the only place where C++ and Kotlin meet
-app/src/main/java/.../core/        plan types and the native engine
-app/src/main/java/.../time/        clock and "next 09:00" in the phone's time zone
+app/src/main/cpp/sleepcore/        the planner: cycle boundaries and the two modes
+app/src/main/cpp/tests/            GoogleTest tests for the planner
+app/src/main/cpp/jni_bridge.cpp    the only place where C++ and Kotlin meet
+app/src/main/java/.../core/        plan types and the class that calls the C++ code
+app/src/main/java/.../time/        "next 09:00" in the phone's time zone
 app/src/main/java/.../data/        settings stored in SharedPreferences
 app/src/main/java/.../scheduling/  turns a plan into AlarmManager alarms
 app/src/main/java/.../detection/   screen-off, which app was open, reboot
 app/src/main/java/.../alarm/       vibration, ringing service, lock screen alarm
-app/src/main/java/.../ui/          main screen and its text formatting
-app/src/test/                      JUnit tests with fakes for Android parts
+app/src/main/java/.../ui/          the main screen
+app/src/test/                      JUnit tests, with a fake planner, settings and alarm manager
 ```
 
 ## Known limitations
