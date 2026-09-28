@@ -11,8 +11,8 @@ class ForegroundAppDetector(private val context: Context) {
     // There is no permission dialog for usage access, the user turns it on in the settings.
     fun hasUsageAccess(): Boolean {
         val appOps = context.getSystemService(AppOpsManager::class.java)
-        val mode = appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
-        return mode == AppOpsManager.MODE_ALLOWED
+        val op = AppOpsManager.OPSTR_GET_USAGE_STATS
+        return appOps.unsafeCheckOpNoThrow(op, Process.myUid(), context.packageName) == AppOpsManager.MODE_ALLOWED
     }
 
     // Package name of the app that was opened last.

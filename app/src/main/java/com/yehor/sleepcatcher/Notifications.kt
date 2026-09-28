@@ -26,84 +26,63 @@ object Notifications {
     private const val ALARM_CHANNEL = "alarm"
     private const val PROBLEM_CHANNEL = "problems"
 
+    private const val FLAGS = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+
     fun ensureChannels(context: Context) {
+        val watch = NotificationChannel(
+            WATCH_CHANNEL, context.getString(R.string.notification_channel_watch), NotificationManager.IMPORTANCE_LOW
+        )
+        val alarm = NotificationChannel(
+            ALARM_CHANNEL, context.getString(R.string.notification_channel_alarm), NotificationManager.IMPORTANCE_HIGH
+        )
+        // The alarm service plays the sound itself.
+        alarm.setSound(null, null)
+        val problems = NotificationChannel(
+            PROBLEM_CHANNEL,
+            context.getString(R.string.notification_channel_problems),
+            NotificationManager.IMPORTANCE_DEFAULT
+        )
+
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
-            NotificationChannel(
-                WATCH_CHANNEL,
-                context.getString(R.string.notification_channel_watch),
-                NotificationManager.IMPORTANCE_LOW,
-            ),
-        )
-        manager.createNotificationChannel(
-            NotificationChannel(
-                ALARM_CHANNEL,
-                context.getString(R.string.notification_channel_alarm),
-                NotificationManager.IMPORTANCE_HIGH,
-            ).apply {
-                // The service plays the sound itself, so the channel stays quiet.
-                setSound(null, null)
-            },
-        )
-        manager.createNotificationChannel(
-            NotificationChannel(
-                PROBLEM_CHANNEL,
-                context.getString(R.string.notification_channel_problems),
-                NotificationManager.IMPORTANCE_DEFAULT,
-            ),
-        )
+        manager.createNotificationChannel(watch)
+        manager.createNotificationChannel(alarm)
+        manager.createNotificationChannel(problems)
     }
 
-    // Android 14 lets the user switch off full-screen alarms for an app.
-    // Without them the alarm is only a heads-up notification on a locked phone.
+    // Since Android 14 the user can turn off full-screen alarms for an app.
     fun canUseFullScreenIntent(context: Context): Boolean =
         NotificationManagerCompat.from(context).canUseFullScreenIntent()
 
-    fun watchNotification(context: Context): Notification {
-        val openApp = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { launch ->
-            PendingIntent.getActivity(context, 0, launch, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        }
-        return NotificationCompat.Builder(context, WATCH_CHANNEL)
+    fun watchNotification(context: Context): Notification =
+        NotificationCompat.Builder(context, WATCH_CHANNEL)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(context.getString(R.string.watch_title))
             .setContentText(context.getString(R.string.watch_text))
-            .setContentIntent(openApp)
+            .setContentIntent(openAppIntent(context))
             .setOngoing(true)
             .setSilent(true)
             .build()
-    }
 
     fun alarmNotification(context: Context): Notification {
-        val stop = PendingIntent.getService(
-            context,
-            0,
-            AlarmRingService.stopIntent(context),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val showAlarm = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, AlarmActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        val stop = PendingIntent.getService(context, 0, AlarmRingService.stopIntent(context), FLAGS)
+        val alarmScreen = Intent(context, AlarmActivity::class.java)
+        alarmScreen.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val showAlarm = PendingIntent.getActivity(context, 0, alarmScreen, FLAGS)
+
         return NotificationCompat.Builder(context, ALARM_CHANNEL)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(context.getString(R.string.alarm_title))
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(showAlarm)
+            // On a locked phone this opens the alarm screen right away.
             .setFullScreenIntent(showAlarm, true)
-            .addAction(
-                android.R.drawable.ic_menu_close_clear_cancel,
-                context.getString(R.string.alarm_stop),
-                stop,
-            )
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, context.getString(R.string.alarm_stop), stop)
             .setOngoing(true)
             .build()
     }
 
-    // Something stops the app from working at night. One id, so repeated
-    // problems update the same notification instead of piling up.
+    // Tells the user why the app could not do its job. Same id, so a new one replaces the old one.
     fun showProblem(context: Context, @StringRes text: Int) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -112,11 +91,13 @@ object Notifications {
             return
         }
         ensureChannels(context)
+
+        val message = context.getString(text)
         val notification = NotificationCompat.Builder(context, PROBLEM_CHANNEL)
             .setSmallIcon(android.R.drawable.stat_notify_error)
             .setContentTitle(context.getString(R.string.app_name))
-            .setContentText(context.getString(text))
-            .setStyle(NotificationCompat.BigTextStyle().bigText(context.getString(text)))
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .build()
         NotificationManagerCompat.from(context).notify(PROBLEM_ID, notification)
     }

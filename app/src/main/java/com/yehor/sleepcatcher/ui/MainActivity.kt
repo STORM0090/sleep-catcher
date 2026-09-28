@@ -47,10 +47,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var exactAlarmButton: Button
     private lateinit var fullScreenButton: Button
 
-    private val askForNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (!granted) toast(R.string.notifications_needed)
-        refresh()
-    }
+    // After the answer the user presses the button again.
+    private val askForNotifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) toast(R.string.notifications_needed)
+            refresh()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -13,42 +13,37 @@ import androidx.core.content.ContextCompat
 import com.yehor.sleepcatcher.LOG_TAG
 import com.yehor.sleepcatcher.Notifications
 
-// Its only job is to stay alive at night so the screen-off receiver exists.
+// Runs while the alarm is armed, only to keep the screen-off receiver registered.
 class SleepWatchService : Service() {
 
-    private val onsetReceiver = SleepOnsetReceiver()
+    private val receiver = SleepOnsetReceiver()
 
     override fun onCreate() {
         super.onCreate()
-        ContextCompat.registerReceiver(
-            this,
-            onsetReceiver,
-            IntentFilter(Intent.ACTION_SCREEN_OFF),
-            ContextCompat.RECEIVER_NOT_EXPORTED,
-        )
+        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
+        ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Notifications.ensureChannels(this)
-        // The special-use type only exists from Android 14; before that a
-        // service of this kind needs no type at all.
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-        } else {
-            0
+        // The "special use" type only exists since Android 14.
+        var type = 0
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            type = ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
         }
         try {
             ServiceCompat.startForeground(this, Notifications.WATCH_ID, Notifications.watchNotification(this), type)
         } catch (e: IllegalStateException) {
-            Log.w(LOG_TAG, "The system refused to keep watching in the foreground", e)
+            Log.w(LOG_TAG, "The system did not let the watch start", e)
             stopSelf()
             return START_NOT_STICKY
         }
+        // If the system kills the service, it should start it again.
         return START_STICKY
     }
 
     override fun onDestroy() {
-        unregisterReceiver(onsetReceiver)
+        unregisterReceiver(receiver)
         super.onDestroy()
     }
 
@@ -59,7 +54,7 @@ class SleepWatchService : Service() {
             try {
                 ContextCompat.startForegroundService(context, Intent(context, SleepWatchService::class.java))
             } catch (e: IllegalStateException) {
-                Log.w(LOG_TAG, "The system refused to start watching", e)
+                Log.w(LOG_TAG, "The system did not let the watch start", e)
             }
         }
 

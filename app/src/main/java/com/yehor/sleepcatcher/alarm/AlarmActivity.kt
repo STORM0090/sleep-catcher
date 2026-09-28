@@ -5,8 +5,7 @@ import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import com.yehor.sleepcatcher.R
 
-// Shown over the lock screen while the loud alarm rings. The manifest entry
-// does the lock screen part; this class only wires up the button.
+// Shown over the lock screen while the alarm rings. The lock screen part is set in the manifest.
 class AlarmActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
