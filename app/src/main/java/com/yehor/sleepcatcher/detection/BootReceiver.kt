@@ -10,37 +10,29 @@ import com.yehor.sleepcatcher.R
 import com.yehor.sleepcatcher.data.PrefsSettingsStore
 import com.yehor.sleepcatcher.scheduling.CycleAlarmScheduler
 import com.yehor.sleepcatcher.scheduling.ScheduleResult
-import com.yehor.sleepcatcher.time.WallClock
 
+// A reboot removes all alarms and stops all services, so bring them back.
 class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
 
         val settings = PrefsSettingsStore(context)
-        val action = BootRestorePolicy.decide(
-            armed = settings.armed,
-            lastOnsetMillis = settings.lastOnsetMillis,
-            plannedFinalWakeMillis = settings.plannedFinalWakeMillis,
-            nowMillis = WallClock.nowMillis(),
-        )
+        if (!settings.armed) return
+        SleepWatchService.start(context)
 
-        when (action) {
-            BootAction.DoNothing -> Unit
-            BootAction.StartWatch -> SleepWatchService.start(context)
-            is BootAction.StartWatchAndRestore -> {
-                SleepWatchService.start(context)
-                // The alarms died with the reboot. Forget them, otherwise the
-                // scheduler would think the night is covered and keep a plan
-                // that no longer exists.
-                settings.scheduledSignalCount = 0
-                settings.plannedFinalWakeMillis = 0L
-                val result = CycleAlarmScheduler.create(context).scheduleFromOnset(action.onsetMillis)
-                Log.i(LOG_TAG, "Restored the night after a reboot: $result")
-                if (result == ScheduleResult.ExactAlarmsNotAllowed) {
-                    Notifications.showProblem(context, R.string.problem_exact_alarms)
-                }
-            }
+        val now = System.currentTimeMillis()
+        val nightIsRunning = settings.lastOnsetMillis > 0 && settings.plannedFinalWakeMillis > now
+        if (!nightIsRunning) return
+
+        // The settings still say the alarms are set, but the reboot deleted them.
+        // Clear that first, otherwise the scheduler would keep a plan that no longer exists.
+        settings.scheduledSignalCount = 0
+        settings.plannedFinalWakeMillis = 0L
+        val result = CycleAlarmScheduler.create(context).scheduleFromOnset(settings.lastOnsetMillis)
+        Log.i(LOG_TAG, "Restored the night after a reboot: $result")
+        if (result == ScheduleResult.ExactAlarmsNotAllowed) {
+            Notifications.showProblem(context, R.string.problem_exact_alarms)
         }
     }
 }

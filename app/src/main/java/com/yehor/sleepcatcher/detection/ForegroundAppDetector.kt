@@ -8,22 +8,18 @@ import android.os.Process
 
 class ForegroundAppDetector(private val context: Context) {
 
-    // Usage access is a special permission: there is no dialog for it, the
-    // user has to switch it on in the system settings.
+    // There is no permission dialog for usage access, the user turns it on in the settings.
     fun hasUsageAccess(): Boolean {
         val appOps = context.getSystemService(AppOpsManager::class.java)
-        val mode = appOps.unsafeCheckOpNoThrow(
-            AppOpsManager.OPSTR_GET_USAGE_STATS,
-            Process.myUid(),
-            context.packageName,
-        )
+        val mode = appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
-    // Package of the activity that came to the front most recently.
+    // Package name of the app that was opened last.
     fun lastForegroundPackage(nowMillis: Long): String? {
         val usage = context.getSystemService(UsageStatsManager::class.java)
-        val events = usage.queryEvents(nowMillis - LOOKBACK_MILLIS, nowMillis)
+        // 12 hours back, because scrolling one feed for hours creates no new events.
+        val events = usage.queryEvents(nowMillis - 12 * 60 * 60 * 1000L, nowMillis)
         val event = UsageEvents.Event()
         var last: String? = null
         while (events.hasNextEvent()) {
@@ -35,9 +31,7 @@ class ForegroundAppDetector(private val context: Context) {
         return last
     }
 
-    private companion object {
-        // Scrolling one feed creates no new events, so a long evening in
-        // TikTok needs a long look back.
-        const val LOOKBACK_MILLIS = 12L * 60 * 60 * 1000
-    }
+    // TikTok has two package names, depending on the country.
+    fun isTikTok(packageName: String?): Boolean =
+        packageName == "com.zhiliaoapp.musically" || packageName == "com.ss.android.ugc.trill"
 }
