@@ -24,6 +24,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import com.yehor.sleepcatcher.Notifications
 import com.yehor.sleepcatcher.R
+import com.yehor.sleepcatcher.alarm.AlarmRingService
 import com.yehor.sleepcatcher.core.AlarmPlan
 import com.yehor.sleepcatcher.core.WakeMode
 import com.yehor.sleepcatcher.data.PrefsSettingsStore
@@ -123,6 +124,9 @@ class MainActivity : AppCompatActivity() {
     // status is rebuilt every time the screen comes back.
     override fun onResume() {
         super.onResume()
+        // Samsung is quick to stop background services. Opening the app is a
+        // cheap moment to make sure the watch runs whenever it should.
+        if (settings.armed) SleepWatchService.start(this)
         refresh()
     }
 
@@ -159,6 +163,7 @@ class MainActivity : AppCompatActivity() {
         settings.armed = false
         scheduler.cancelScheduled()
         SleepWatchService.stop(this)
+        AlarmRingService.stop(this)
         planText.text = ""
         refresh()
     }

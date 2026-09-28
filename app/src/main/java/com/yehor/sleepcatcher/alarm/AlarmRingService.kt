@@ -107,6 +107,12 @@ class AlarmRingService : Service() {
             }
         }
 
+        // Does nothing when the alarm is not ringing.
+        fun stop(context: Context) {
+            context.stopService(Intent(context, AlarmRingService::class.java))
+        }
+
+        // For the notification button, which can only send an intent.
         fun stopIntent(context: Context): Intent =
             Intent(context, AlarmRingService::class.java).setAction(ACTION_STOP)
     }

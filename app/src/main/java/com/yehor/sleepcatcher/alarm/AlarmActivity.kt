@@ -14,7 +14,7 @@ class AlarmActivity : AppCompatActivity() {
         setContentView(R.layout.activity_alarm)
 
         findViewById<Button>(R.id.stop_button).setOnClickListener {
-            startService(AlarmRingService.stopIntent(this))
+            AlarmRingService.stop(this)
             finish()
         }
     }
