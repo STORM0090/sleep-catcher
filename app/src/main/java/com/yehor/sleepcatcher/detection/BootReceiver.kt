@@ -29,9 +29,9 @@ class BootReceiver : BroadcastReceiver() {
         // Clear that first, otherwise the scheduler would keep a plan that no longer exists.
         settings.scheduledSignalCount = 0
         settings.plannedFinalWakeMillis = 0L
-        val result = CycleAlarmScheduler.create(context).scheduleFromOnset(settings.lastOnsetMillis)
+        val result = CycleAlarmScheduler.create(context).scheduleFromOnset(settings.lastOnsetMillis, now)
         Log.i(LOG_TAG, "Restored the night after a reboot: $result")
-        if (result == ScheduleResult.ExactAlarmsNotAllowed) {
+        if (result == ScheduleResult.NO_EXACT_ALARMS) {
             Notifications.showProblem(context, R.string.problem_exact_alarms)
         }
     }

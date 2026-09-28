@@ -2,33 +2,27 @@ package com.yehor.sleepcatcher.testing
 
 import com.yehor.sleepcatcher.scheduling.AlarmGateway
 
-// Writes down what the scheduler asked for, in the order it asked.
-class RecordingAlarmGateway(var exactAllowed: Boolean = true) : AlarmGateway {
+// Writes every call down as text, so a test can compare it with a list of strings.
+class RecordingAlarmGateway : AlarmGateway {
 
-    sealed interface Call {
-        data class Loud(val index: Int, val atMillis: Long) : Call
-        data class Soft(val index: Int, val atMillis: Long) : Call
-        data class Cancel(val index: Int) : Call
-    }
+    val calls = mutableListOf<String>()
+    var exactAllowed = true
 
-    val calls = mutableListOf<Call>()
-
-    // Set to make the next loud alarm fail the way Android does when the
-    // exact alarm permission is revoked halfway through.
-    var loudFailure: SecurityException? = null
+    // Pretends the exact alarm permission disappears before the loud alarm is set.
+    var failOnLoud = false
 
     override fun canScheduleExact(): Boolean = exactAllowed
 
     override fun scheduleLoud(index: Int, atMillis: Long) {
-        loudFailure?.let { throw it }
-        calls += Call.Loud(index, atMillis)
+        if (failOnLoud) throw SecurityException("exact alarms revoked")
+        calls.add("loud $index at ${hhmm(atMillis)}")
     }
 
     override fun scheduleSoft(index: Int, atMillis: Long) {
-        calls += Call.Soft(index, atMillis)
+        calls.add("soft $index at ${hhmm(atMillis)}")
     }
 
     override fun cancel(index: Int) {
-        calls += Call.Cancel(index)
+        calls.add("cancel $index")
     }
 }

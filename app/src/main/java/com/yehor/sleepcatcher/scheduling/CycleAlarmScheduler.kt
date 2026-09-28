@@ -2,7 +2,6 @@ package com.yehor.sleepcatcher.scheduling
 
 import android.content.Context
 import com.yehor.sleepcatcher.core.AlarmPlan
-import com.yehor.sleepcatcher.core.AlarmSignal
 import com.yehor.sleepcatcher.core.NativePlanEngine
 import com.yehor.sleepcatcher.core.PlanEngine
 import com.yehor.sleepcatcher.core.PlanRequest
@@ -10,100 +9,102 @@ import com.yehor.sleepcatcher.core.PlanTuning
 import com.yehor.sleepcatcher.core.SignalKind
 import com.yehor.sleepcatcher.data.PrefsSettingsStore
 import com.yehor.sleepcatcher.data.SettingsStore
-import com.yehor.sleepcatcher.time.Clock
 import com.yehor.sleepcatcher.time.TargetTime
-import com.yehor.sleepcatcher.time.WallClock
 import java.time.ZoneId
 
-// Turns a moment of falling asleep into real alarms. Everything it needs is
-// passed in, so the whole class can be exercised without a phone.
+enum class ScheduleResult {
+    SCHEDULED,
+    KEPT_EXISTING,
+    NOTHING_IN_FUTURE,
+    NO_EXACT_ALARMS
+}
+
+// Turns the moment of falling asleep into real alarms.
 class CycleAlarmScheduler(
     private val engine: PlanEngine,
     private val gateway: AlarmGateway,
     private val settings: SettingsStore,
-    private val clock: Clock,
-    private val zone: ZoneId = ZoneId.systemDefault(),
-    private val tuning: PlanTuning = PlanTuning(),
+    private val zone: ZoneId = ZoneId.systemDefault()
 ) {
+
+    private val tuning = PlanTuning()
 
     fun previewPlan(onsetMillis: Long): AlarmPlan = engine.buildPlan(requestFor(onsetMillis))
 
-    fun scheduleFromOnset(onsetMillis: Long): ScheduleResult {
+    fun scheduleFromOnset(onsetMillis: Long, nowMillis: Long): ScheduleResult {
         if (!gateway.canScheduleExact()) {
-            // Android drops every exact alarm of an app when this permission
-            // is taken away, so there is no old plan left to keep either.
+            // Android deletes all exact alarms of an app when this permission is taken away.
             cancelScheduled()
-            return ScheduleResult.ExactAlarmsNotAllowed
+            return ScheduleResult.NO_EXACT_ALARMS
         }
-
-        val now = clock.nowMillis()
-        val decision = OnsetPolicy.decide(
-            onsetMillis = onsetMillis,
-            targetMillis = targetFor(onsetMillis),
-            plannedFinalWakeMillis = settings.plannedFinalWakeMillis,
-            nowMillis = now,
-            tuning = tuning,
-        )
-        when (decision) {
-            OnsetDecision.KeepExisting -> return ScheduleResult.KeptExisting
-            OnsetDecision.Reschedule -> Unit
+        if (shouldKeepCurrentPlan(onsetMillis, nowMillis)) {
+            return ScheduleResult.KEPT_EXISTING
         }
 
         val plan = engine.buildPlan(requestFor(onsetMillis))
-        val future = PlanFilter.futureSignals(plan, now)
+        // After a late rebuild, for example after a reboot, some signals are already
+        // in the past and Android would fire them right away.
+        val future = plan.signals.filter { it.atMillis > nowMillis }
 
-        // Old alarms go first: they use the same request codes as the new ones.
+        // Cancel first, because the new alarms reuse the same numbers.
         cancelScheduled()
         settings.lastOnsetMillis = onsetMillis
-        if (future.isEmpty()) return ScheduleResult.NothingInFuture
+        if (future.isEmpty()) {
+            return ScheduleResult.NOTHING_IN_FUTURE
+        }
 
         try {
-            future.forEachIndexed(::schedule)
+            for (i in future.indices) {
+                val signal = future[i]
+                if (signal.kind == SignalKind.LOUD_ALARM) {
+                    gateway.scheduleLoud(i, signal.atMillis)
+                } else {
+                    gateway.scheduleSoft(i, signal.atMillis)
+                }
+            }
         } catch (e: SecurityException) {
-            // The permission can disappear between the check and this call.
-            // Half a plan is worse than none, so take back what did get set.
-            future.indices.forEach(gateway::cancel)
-            return ScheduleResult.ExactAlarmsNotAllowed
+            // The permission was taken away halfway. Half a plan is worse than none.
+            for (i in future.indices) {
+                gateway.cancel(i)
+            }
+            return ScheduleResult.NO_EXACT_ALARMS
         }
+
         settings.scheduledSignalCount = future.size
         settings.plannedFinalWakeMillis = future.last().atMillis
-        return ScheduleResult.Scheduled(plan, future)
+        return ScheduleResult.SCHEDULED
     }
 
     fun cancelScheduled() {
-        for (index in 0 until settings.scheduledSignalCount) {
-            gateway.cancel(index)
+        for (i in 0 until settings.scheduledSignalCount) {
+            gateway.cancel(i)
         }
         settings.scheduledSignalCount = 0
         settings.plannedFinalWakeMillis = 0L
     }
 
-    private fun schedule(index: Int, signal: AlarmSignal) = when (signal.kind) {
-        SignalKind.SOFT_PULSE -> gateway.scheduleSoft(index, signal.atMillis)
-        SignalKind.LOUD_ALARM -> gateway.scheduleLoud(index, signal.atMillis)
+    // Locking the phone again usually means I fell asleep later, so the plan is rebuilt.
+    // But not in the morning, when less than one cycle is left before the target.
+    private fun shouldKeepCurrentPlan(onsetMillis: Long, nowMillis: Long): Boolean {
+        val planIsRunning = settings.plannedFinalWakeMillis > nowMillis
+        val sleepStart = onsetMillis + tuning.fallAsleepMinutes * 60_000L
+        val sleepLeft = targetFor(onsetMillis) - sleepStart
+        return planIsRunning && sleepLeft < tuning.cycleMinutes * 60_000L
     }
 
-    private fun requestFor(onsetMillis: Long) = PlanRequest(
-        onsetMillis = onsetMillis,
-        targetMillis = targetFor(onsetMillis),
-        mode = settings.mode,
-        naturalWakeMillis = TargetTime.nextOccurrence(onsetMillis, NATURAL_WAKE_HOUR, 0, zone),
-        tuning = tuning,
-    )
+    private fun requestFor(onsetMillis: Long): PlanRequest {
+        val naturalWake = TargetTime.nextOccurrence(onsetMillis, NATURAL_WAKE_HOUR, 0, zone)
+        return PlanRequest(onsetMillis, targetFor(onsetMillis), settings.mode, naturalWake, tuning)
+    }
 
     private fun targetFor(onsetMillis: Long): Long =
         TargetTime.nextOccurrence(onsetMillis, settings.targetHour, settings.targetMinute, zone)
 
     companion object {
-
-        // Past this hour I wake up by myself whatever the alarm says.
+        // After this hour I wake up by myself anyway.
         const val NATURAL_WAKE_HOUR = 11
 
-        fun create(context: Context): CycleAlarmScheduler = CycleAlarmScheduler(
-            engine = NativePlanEngine(),
-            gateway = AndroidAlarmGateway(context),
-            settings = PrefsSettingsStore(context),
-            clock = WallClock,
-        )
+        fun create(context: Context): CycleAlarmScheduler =
+            CycleAlarmScheduler(NativePlanEngine(), AndroidAlarmGateway(context), PrefsSettingsStore(context))
     }
 }

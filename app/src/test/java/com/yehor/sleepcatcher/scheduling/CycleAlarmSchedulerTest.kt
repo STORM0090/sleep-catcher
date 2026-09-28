@@ -2,10 +2,8 @@ package com.yehor.sleepcatcher.scheduling
 
 import com.yehor.sleepcatcher.core.WakeMode
 import com.yehor.sleepcatcher.testing.FakePlanEngine
-import com.yehor.sleepcatcher.testing.FixedClock
 import com.yehor.sleepcatcher.testing.InMemorySettingsStore
 import com.yehor.sleepcatcher.testing.RecordingAlarmGateway
-import com.yehor.sleepcatcher.testing.RecordingAlarmGateway.Call
 import com.yehor.sleepcatcher.testing.at
 import com.yehor.sleepcatcher.testing.loud
 import com.yehor.sleepcatcher.testing.planOf
@@ -20,31 +18,32 @@ class CycleAlarmSchedulerTest {
     private val engine = FakePlanEngine(planOf(loud(at(8, 45))))
     private val gateway = RecordingAlarmGateway()
     private val settings = InMemorySettingsStore()
-    private val clock = FixedClock(at(1))
 
-    // In UTC the test helper at(9) really is 09:00, which keeps the numbers readable.
-    private val scheduler = CycleAlarmScheduler(engine, gateway, settings, clock, ZoneId.of("UTC"))
+    // In UTC at(9) really is 09:00, which keeps the numbers readable.
+    private val scheduler = CycleAlarmScheduler(engine, gateway, settings, ZoneId.of("UTC"))
 
     @Test
-    fun aRefreshedPlanBecomesOneLoudAlarm() {
-        scheduler.scheduleFromOnset(at(1))
-        assertEquals(listOf(Call.Loud(0, at(8, 45))), gateway.calls)
+    fun refreshedPlanBecomesOneLoudAlarm() {
+        val result = scheduler.scheduleFromOnset(at(1), at(1))
+
+        assertEquals(ScheduleResult.SCHEDULED, result)
+        assertEquals(listOf("loud 0 at 08:45"), gateway.calls)
     }
 
     @Test
-    fun aCatchDreamPlanBecomesANudgeAndAnAlarm() {
+    fun catchDreamPlanBecomesNudgeAndAlarm() {
         engine.plan = planOf(soft(at(7, 15)), loud(at(9)))
 
-        scheduler.scheduleFromOnset(at(1))
+        scheduler.scheduleFromOnset(at(1), at(1))
 
-        assertEquals(listOf(Call.Soft(0, at(7, 15)), Call.Loud(1, at(9))), gateway.calls)
+        assertEquals(listOf("soft 0 at 07:15", "loud 1 at 09:00"), gateway.calls)
     }
 
     @Test
-    fun theSettingsDescribeTheNightInProgress() {
+    fun settingsRememberTheNight() {
         engine.plan = planOf(soft(at(7, 15)), loud(at(9)))
 
-        scheduler.scheduleFromOnset(at(1))
+        scheduler.scheduleFromOnset(at(1), at(1))
 
         assertEquals(at(1), settings.lastOnsetMillis)
         assertEquals(2, settings.scheduledSignalCount)
@@ -52,128 +51,151 @@ class CycleAlarmSchedulerTest {
     }
 
     @Test
-    fun theWantedTimesAreReadFromTheSettings() {
+    fun requestIsBuiltFromTheSettings() {
         settings.mode = WakeMode.CATCH_DREAM
         settings.targetHour = 7
         settings.targetMinute = 30
 
-        scheduler.scheduleFromOnset(at(1))
+        scheduler.scheduleFromOnset(at(1), at(1))
 
-        val request = requireNotNull(engine.lastRequest)
+        val request = engine.lastRequest!!
         assertEquals(at(1), request.onsetMillis)
         assertEquals(at(7, 30), request.targetMillis)
         assertEquals(WakeMode.CATCH_DREAM, request.mode)
-        assertEquals(at(CycleAlarmScheduler.NATURAL_WAKE_HOUR), request.naturalWakeMillis)
+        assertEquals(at(11), request.naturalWakeMillis)
     }
 
     @Test
-    fun aSecondOnsetClearsTheAlarmsItReplaces() {
+    fun secondOnsetReplacesTheOldAlarms() {
         engine.plan = planOf(soft(at(7, 15)), loud(at(9)))
-        scheduler.scheduleFromOnset(at(1))
+        scheduler.scheduleFromOnset(at(1), at(1))
         gateway.calls.clear()
 
         engine.plan = planOf(loud(at(9)))
-        scheduler.scheduleFromOnset(at(2))
+        scheduler.scheduleFromOnset(at(2), at(2))
 
-        assertEquals(listOf(Call.Cancel(0), Call.Cancel(1), Call.Loud(0, at(9))), gateway.calls)
+        assertEquals(listOf("cancel 0", "cancel 1", "loud 0 at 09:00"), gateway.calls)
         assertEquals(1, settings.scheduledSignalCount)
     }
 
     @Test
-    fun anOnsetTooCloseToTheTargetLeavesTheAlarmsAlone() {
-        scheduler.scheduleFromOnset(at(1))
+    fun firstOnsetIsAlwaysPlannedEvenIfLate() {
+        val result = scheduler.scheduleFromOnset(at(8, 30), at(8, 30))
+        assertEquals(ScheduleResult.SCHEDULED, result)
+    }
+
+    @Test
+    fun onsetLessThanOneCycleBeforeTargetKeepsThePlan() {
+        scheduler.scheduleFromOnset(at(1), at(1))
         gateway.calls.clear()
 
-        clock.now = at(8)
-        val result = scheduler.scheduleFromOnset(at(8))
+        // Sleep would start at 8:15, only 45 minutes before the 9:00 target.
+        val result = scheduler.scheduleFromOnset(at(8), at(8))
 
-        assertEquals(ScheduleResult.KeptExisting, result)
+        assertEquals(ScheduleResult.KEPT_EXISTING, result)
         assertTrue(gateway.calls.isEmpty())
         assertEquals(at(1), settings.lastOnsetMillis)
     }
 
     @Test
-    fun cancellingForgetsTheWholeNight() {
-        engine.plan = planOf(soft(at(7, 15)), loud(at(9)))
-        scheduler.scheduleFromOnset(at(1))
-        gateway.calls.clear()
+    fun exactlyOneCycleLeftIsStillPlanned() {
+        scheduler.scheduleFromOnset(at(1), at(1))
 
-        scheduler.cancelScheduled()
+        // Sleep would start at 7:30, exactly 90 minutes before 9:00.
+        val result = scheduler.scheduleFromOnset(at(7, 15), at(7, 15))
 
-        assertEquals(listOf(Call.Cancel(0), Call.Cancel(1)), gateway.calls)
-        assertEquals(0, settings.scheduledSignalCount)
-        assertEquals(0L, settings.plannedFinalWakeMillis)
+        assertEquals(ScheduleResult.SCHEDULED, result)
     }
 
     @Test
-    fun aLateRebuildSkipsTheNudgeThatAlreadyPassed() {
+    fun planThatAlreadyRangDoesNotCount() {
+        scheduler.scheduleFromOnset(at(1), at(1))
+        engine.plan = planOf(loud(at(9)))
+
+        // 8:50: the 8:45 alarm has rung, so a new onset gets a new plan.
+        val result = scheduler.scheduleFromOnset(at(8, 50), at(8, 50))
+
+        assertEquals(ScheduleResult.SCHEDULED, result)
+    }
+
+    @Test
+    fun lateRebuildSkipsSignalsThatAlreadyPassed() {
         engine.plan = planOf(soft(at(7, 15)), loud(at(9)))
-        clock.now = at(8)
 
-        val result = scheduler.scheduleFromOnset(at(1))
+        // Rebuilt at 8:00, for example after a reboot.
+        val result = scheduler.scheduleFromOnset(at(1), at(8))
 
-        assertEquals(listOf(Call.Loud(0, at(9))), gateway.calls)
-        assertEquals(listOf(loud(at(9))), (result as ScheduleResult.Scheduled).scheduled)
+        assertEquals(ScheduleResult.SCHEDULED, result)
+        assertEquals(listOf("loud 0 at 09:00"), gateway.calls)
         assertEquals(1, settings.scheduledSignalCount)
         assertEquals(at(9), settings.plannedFinalWakeMillis)
     }
 
     @Test
-    fun aRebuildAfterTheAlarmSchedulesNothing() {
+    fun rebuildAfterTheAlarmSetsNothing() {
         engine.plan = planOf(soft(at(7, 15)), loud(at(9)))
-        clock.now = at(10)
 
-        val result = scheduler.scheduleFromOnset(at(1))
+        val result = scheduler.scheduleFromOnset(at(1), at(10))
 
-        assertEquals(ScheduleResult.NothingInFuture, result)
+        assertEquals(ScheduleResult.NOTHING_IN_FUTURE, result)
         assertTrue(gateway.calls.isEmpty())
-        assertEquals(0, settings.scheduledSignalCount)
         assertEquals(0L, settings.plannedFinalWakeMillis)
     }
 
     @Test
-    fun withoutExactAlarmsNothingIsScheduled() {
+    fun withoutExactAlarmsNothingIsSet() {
         gateway.exactAllowed = false
 
-        val result = scheduler.scheduleFromOnset(at(1))
+        val result = scheduler.scheduleFromOnset(at(1), at(1))
 
-        assertEquals(ScheduleResult.ExactAlarmsNotAllowed, result)
+        assertEquals(ScheduleResult.NO_EXACT_ALARMS, result)
         assertTrue(gateway.calls.isEmpty())
     }
 
     @Test
     fun losingExactAlarmsAlsoForgetsTheOldPlan() {
-        scheduler.scheduleFromOnset(at(1))
+        scheduler.scheduleFromOnset(at(1), at(1))
         gateway.calls.clear()
         gateway.exactAllowed = false
 
-        val result = scheduler.scheduleFromOnset(at(2))
+        val result = scheduler.scheduleFromOnset(at(2), at(2))
 
-        assertEquals(ScheduleResult.ExactAlarmsNotAllowed, result)
-        assertEquals(listOf(Call.Cancel(0)), gateway.calls)
+        assertEquals(ScheduleResult.NO_EXACT_ALARMS, result)
+        assertEquals(listOf("cancel 0"), gateway.calls)
         assertEquals(0, settings.scheduledSignalCount)
-        assertEquals(0L, settings.plannedFinalWakeMillis)
     }
 
     @Test
-    fun aRefusalHalfwayTakesBackWhatWasAlreadySet() {
+    fun refusalHalfwayTakesBackWhatWasAlreadySet() {
         engine.plan = planOf(soft(at(7, 15)), loud(at(9)))
-        gateway.loudFailure = SecurityException("exact alarms revoked")
+        gateway.failOnLoud = true
 
-        val result = scheduler.scheduleFromOnset(at(1))
+        val result = scheduler.scheduleFromOnset(at(1), at(1))
 
-        assertEquals(ScheduleResult.ExactAlarmsNotAllowed, result)
-        assertEquals(listOf(Call.Soft(0, at(7, 15)), Call.Cancel(0), Call.Cancel(1)), gateway.calls)
+        assertEquals(ScheduleResult.NO_EXACT_ALARMS, result)
+        assertEquals(listOf("soft 0 at 07:15", "cancel 0", "cancel 1"), gateway.calls)
         assertEquals(0, settings.scheduledSignalCount)
         assertEquals(0L, settings.plannedFinalWakeMillis)
     }
 
     @Test
-    fun previewingDoesNotTouchTheAlarms() {
+    fun cancellingForgetsTheWholeNight() {
+        engine.plan = planOf(soft(at(7, 15)), loud(at(9)))
+        scheduler.scheduleFromOnset(at(1), at(1))
+        gateway.calls.clear()
+
+        scheduler.cancelScheduled()
+
+        assertEquals(listOf("cancel 0", "cancel 1"), gateway.calls)
+        assertEquals(0, settings.scheduledSignalCount)
+        assertEquals(0L, settings.plannedFinalWakeMillis)
+    }
+
+    @Test
+    fun previewDoesNotTouchTheAlarms() {
         val plan = scheduler.previewPlan(at(1))
 
         assertEquals(at(8, 45), plan.finalWakeMillis)
         assertTrue(gateway.calls.isEmpty())
-        assertEquals(0, settings.scheduledSignalCount)
     }
 }

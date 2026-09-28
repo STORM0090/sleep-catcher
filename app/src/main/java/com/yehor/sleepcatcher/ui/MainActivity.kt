@@ -34,7 +34,6 @@ import com.yehor.sleepcatcher.detection.SleepWatchService
 import com.yehor.sleepcatcher.scheduling.AndroidAlarmGateway
 import com.yehor.sleepcatcher.scheduling.CycleAlarmScheduler
 import com.yehor.sleepcatcher.scheduling.ScheduleResult
-import com.yehor.sleepcatcher.time.WallClock
 import java.time.ZoneId
 
 class MainActivity : AppCompatActivity() {
@@ -170,7 +169,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun preview() {
         saveInputs()
-        showPlan(scheduler.previewPlan(WallClock.nowMillis()))
+        showPlan(scheduler.previewPlan(System.currentTimeMillis()))
     }
 
     // Runs the whole chain during the day instead of waiting for a real night.
@@ -180,11 +179,12 @@ class MainActivity : AppCompatActivity() {
             settings.armed = true
             SleepWatchService.start(this)
         }
-        when (val result = scheduler.scheduleFromOnset(WallClock.nowMillis())) {
-            is ScheduleResult.Scheduled -> showPlan(result.plan)
-            ScheduleResult.KeptExisting -> toast(R.string.kept_existing_plan)
-            ScheduleResult.NothingInFuture -> toast(R.string.nothing_in_future)
-            ScheduleResult.ExactAlarmsNotAllowed -> toast(R.string.exact_alarms_needed)
+        val now = System.currentTimeMillis()
+        when (scheduler.scheduleFromOnset(now, now)) {
+            ScheduleResult.SCHEDULED -> showPlan(scheduler.previewPlan(now))
+            ScheduleResult.KEPT_EXISTING -> toast(R.string.kept_existing_plan)
+            ScheduleResult.NOTHING_IN_FUTURE -> toast(R.string.nothing_in_future)
+            ScheduleResult.NO_EXACT_ALARMS -> toast(R.string.exact_alarms_needed)
         }
         refresh()
     }

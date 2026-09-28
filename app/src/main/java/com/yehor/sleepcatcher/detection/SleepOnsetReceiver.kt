@@ -34,9 +34,9 @@ class SleepOnsetReceiver : BroadcastReceiver() {
             return
         }
 
-        val result = CycleAlarmScheduler.create(context).scheduleFromOnset(now)
+        val result = CycleAlarmScheduler.create(context).scheduleFromOnset(now, now)
         Log.i(LOG_TAG, "Fell asleep at $now: $result")
-        if (result == ScheduleResult.ExactAlarmsNotAllowed) {
+        if (result == ScheduleResult.NO_EXACT_ALARMS) {
             Notifications.showProblem(context, R.string.problem_exact_alarms)
         }
     }
