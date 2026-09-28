@@ -143,11 +143,19 @@ TEST(CatchDream, TargetBeforeOnsetFallsBackToMinimumCycles) {
     EXPECT_EQ(plan.signals[0].kind, SignalKind::LoudAlarm);
 }
 
-TEST(CatchDream, TargetAtSleepStartFallsBack) {
-    // Onset 4:00 plus the 15 min latency is exactly the target.
-    const Plan plan = buildPlan(request(Mode::CatchDream, at(4), at(4, 15)));
+TEST(CatchDream, TargetEqualToOnsetFallsBack) {
+    const Plan plan = buildPlan(request(Mode::CatchDream, at(4), at(4)));
     ASSERT_EQ(plan.signals.size(), 1u);
     EXPECT_EQ(plan.signals[0].atMs, at(8, 45));
+}
+
+TEST(CatchDream, TargetBeforeSleepStartStillRingsAtTheTarget) {
+    // The target is 10 minutes after the screen went off, before the 15 minutes
+    // it takes to fall asleep. The alarm still must not ring later than asked.
+    const Plan plan = buildPlan(request(Mode::CatchDream, at(4), at(4, 10)));
+    ASSERT_EQ(plan.signals.size(), 1u);
+    EXPECT_EQ(plan.signals[0].atMs, at(4, 10));
+    EXPECT_EQ(plan.signals[0].kind, SignalKind::LoudAlarm);
 }
 
 TEST(CatchDream, TargetInsideFirstCycleKeepsSafetyAlarm) {

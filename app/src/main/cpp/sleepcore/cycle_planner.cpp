@@ -51,7 +51,7 @@ Plan buildPlan(const PlanRequest& req) {
     int64_t cycle = minutes(t.cycleMinutes);
     Plan plan;
 
-    if (req.mode == Mode::CatchDream && req.targetMs > sleepStart) {
+    if (req.mode == Mode::CatchDream && req.targetMs > req.onsetMs) {
         // Soft pulse on the last cycle end that is at least softGap before the target.
         int64_t latestSoft = req.targetMs - minutes(t.softGapMinutes);
         int64_t k = cyclesBetween(sleepStart, latestSoft, cycle);
@@ -62,7 +62,7 @@ Plan buildPlan(const PlanRequest& req) {
         // Loud alarm exactly at the target, so it never wakes me later than I asked.
         plan.signals.push_back({req.targetMs, SignalKind::LoudAlarm});
     } else {
-        // Refreshed mode, an unknown mode, or a target that has already passed.
+        // Refreshed mode, an unknown mode, or a target that is not after the onset.
         int64_t alarmAt = refreshedAlarm(sleepStart, req.targetMs, cycle, t.minCycles);
         plan.signals.push_back({alarmAt, SignalKind::LoudAlarm});
     }
