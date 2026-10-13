@@ -148,4 +148,4 @@ app/src/test/                      JUnit tests, with a fake planner, settings an
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+Yehor Vorobiov
