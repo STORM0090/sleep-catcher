@@ -82,14 +82,22 @@ start time, skipping anything that should already have rung.
 
 ## 6. Things that went wrong on the way
 
+Found while reading the code and writing tests, before the phone:
+
 - Usage stats only record when an app comes to the front, not while you use
-  it. A long evening in one feed has no new events, so the lookback window
-  had to be much longer than I first thought.
+  it. A long evening in one feed has no new events, so a 3 hour lookback
+  window would miss it. It is 12 hours now.
 - Lint caught that I had forgotten to declare the exact alarm permissions.
   The unit tests could not have found that: the fake alarm manager has no
   idea what a permission is.
-- After a reboot at 8:00 the restored plan still contained the 7:15 nudge,
-  and Android fires alarms set in the past immediately.
+- A plan restored after a reboot at 8:00 would still contain the 7:15 nudge,
+  and Android fires alarms set in the past immediately. Past signals are
+  skipped now, with a test for it.
+- "Catch a dream" with a target that was already behind the start of sleep
+  put the alarm in the past, and a cycle length of zero divided by zero.
+- "Catch a dream" with a target less than 15 minutes after the screen went
+  off fell back to the "Refreshed" rule and moved the alarm hours later.
+  That broke the one promise of the mode: never ring later than asked.
 - Android 15 draws apps behind the status bar by default, which would have
   pushed the first line of text under the clock.
 - The first working version had too many tiny classes: a separate class for
@@ -97,14 +105,11 @@ start time, skipping anything that should already have rung.
   went back and folded most of them into the places that use them. The code
   got shorter and easier to follow, and the tests that mattered stayed.
 
-The first run on the phone found two more things the tests on the PC could
-not:
+Found by running it on the S24 Ultra with Android 16:
 
-- Android 16 warned that the native library was not aligned for 16 KB
-  memory pages. NDK 27 only does that with one extra linker flag.
-- Trying "Catch a dream" with a target a few minutes ahead showed that the
-  alarm moved hours later when the target was within the first 15 minutes.
-  That broke the one promise of the mode: never ring later than asked.
+- The system warned that the native library was not aligned for 16 KB
+  memory pages. NDK 27 only does that with one extra linker flag. This is
+  the one problem that only the phone showed.
 
 After that the whole chain worked on the phone: TikTok, screen off, alarm
 set, alarm over the lock screen, Stop, Disarm, and a reboot in the middle of
