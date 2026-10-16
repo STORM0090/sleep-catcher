@@ -120,4 +120,4 @@ On the phone I checked by hand: TikTok then screen off schedules the plan, a scr
 
 ## License
 
-MIT, Yehor Vorobiov. See [LICENSE](LICENSE).
+Yehor Vorobiov
